@@ -5,12 +5,12 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-from transformers import (T5Config, T5ForConditionalGeneration, Trainer,
+from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
 from transformers.optimization import AdamW, get_constant_schedule
 
-from .data import MolTokenizer, MolTranslationDataset, data_collator
-
+from data import MolTokenizer, MolTranslationDataset, data_collator
+from models import EarlyStopTrainer
 
 def add_args(parser):
     parser.add_argument(
@@ -93,13 +93,13 @@ def add_args(parser):
     )
     parser.add_argument(
         "--save_steps",
-        default=10000,
+        default=100000,
         type=int,
         help="Checkpoints of model would be saved every setting number of steps.",
     )
     parser.add_argument(
         "--save_total_limit",
-        default=20,
+        default=2,
         type=int,
         help="The maximum number of chackpoints to be kept.",
     )
@@ -206,7 +206,7 @@ def main():
         optimizer = None
         lr_scheduler = None
 
-    trainer = Trainer(
+    trainer = EarlyStopTrainer(
         model=model,
         args=training_args,
         data_collator=data_collator_pad1,

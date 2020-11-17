@@ -12,8 +12,8 @@ from sklearn.metrics import mean_absolute_error
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
-from .data import MolTokenizer, YieldDataset, data_collator_yield
-from .models import T5ForRegression
+from data import MolTokenizer, YieldDataset, data_collator_yield
+from models import T5ForRegression
 
 
 def add_args(parser):
@@ -98,7 +98,7 @@ def main():
                                          map_location=lambda storage, loc: storage))
         
         model = model.eval()
-        data_collator_pad1 = partial(data_collator,
+        data_collator_pad1 = partial(data_collator_yield,
                                      pad_token_id=tokenizer.pad_token_id,
                                      percentage=('sigmoid' in args.mode),
                                     )

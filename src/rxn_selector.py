@@ -6,15 +6,13 @@ import pandas as pd
 import scipy
 import torch
 import torch.nn as nn
-from early_stop_trainer import EarlyStopTrainer
 from sklearn.metrics import mean_absolute_error
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 from transformers import T5Config, TrainingArguments
 
-from .data import MolTokenizer, YieldDataset, data_collator_yield
-from .model import T5ForRegression
-
+from data import MolTokenizer, YieldDataset, data_collator_yield
+from models import T5ForRegression, EarlyStopTrainer
 
 def add_args(parser): 
     parser.add_argument(
@@ -140,7 +138,7 @@ def main():
             model.load_state_dict(torch.load(os.path.join(args.pretrain,       
                 'pytorch_model.bin'), map_location=lambda storage, loc: storage))
 
-    data_collator_pad1 = partial(data_collator,
+    data_collator_pad1 = partial(data_collator_yield,
                                  pad_token_id=tokenizer.pad_token_id,
                                  percentage=('sigmoid' in args.mode),
                                 )
@@ -178,7 +176,8 @@ def main():
         results = torch.zeros(len(df), 3)
         results[:, 0]=torch.from_numpy(df[1].to_numpy())
         testset = YieldDataset(tokenizer, file, type_path="test", sep_id=[0])
-
+        test_loader = DataLoader(testset, batch_size=args.batch_size,               
+                     collate_fn=data_collator_pad1)
         results[:, 1]=results[:,0][torch.randperm(len(df))]
         
         x = []

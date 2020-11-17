@@ -187,7 +187,7 @@ def main():
             overwrite_output_dir=True,
             do_train=True,
             do_eval=args.eval,
-            evaluate_during_training=True,
+            evaluate_during_training=args.eval,
             num_train_epochs=args.num_epoch,
             per_device_train_batch_size=args.batch_size,
             per_device_eval_batch_size=args.batch_size,

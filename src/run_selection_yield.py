@@ -6,13 +6,12 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from data_utils import MolTokenizer
-from early_stop_trainer import EarlyStopTrainer
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 from transformers import T5Config, TrainingArguments
 
-from .data import YieldDataset, data_collator_yield
-from .models import T5ForRegression
+from data import YieldDataset, data_collator_yield
+from models import T5ForRegression, EarlyStopTrainer
 
 
 def add_args(parser): 
@@ -200,6 +199,7 @@ def main():
 
             trainer.train()
             trainer.save_model(output_dir)
+            model = model.eval()
             x = []
             for batch in tqdm(test_loader, desc="prediction"):
 
