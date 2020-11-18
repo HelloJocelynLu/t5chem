@@ -31,7 +31,7 @@ conda activate torch-env
 #python src/run_pred_yield.py --data_files data/C_N_yield/out_sample/test* --model_dir models/C_N_Yield/pretrain_rxn --split_idx 0
 
 #python src/run_trainer_yield.py --data_files data/USPTO_yield/Ni_rxns/train.txt --output_dir models/USPTO_yield/Ni_rxns/ --pretrain models/smiles_pretrain/rxn_pretrain/ --eval --split_idx 0 --val_file data/USPTO_yield/Ni_rxns/val.txt --vocab data/vocab/2020_08_09_vocab.pt --batch_size 4 --save_total_limit 0
-python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/train.txt --model_dir model/USPTO_yield/Ni_rxns/ --split_idx 1
-python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/val.txt --model_dir model/USPTO_yield/Ni_rxns/ --split_idx 1
-python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/test.txt --model_dir model/USPTO_yield/Ni_rxns/ --split_idx 1
+python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/train.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
+python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/val.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
+python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/test.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
 
