@@ -95,6 +95,47 @@ class MolTranslationDataset(Dataset):
         return len(ex['input_ids'])
 
 
+class YieldDatasetFromList(Dataset):
+    def __init__(
+        self,
+        tokenizer,
+        list_data,
+        max_source_length=500,
+    ):
+        super().__init__()
+        # FIXME: the rstrip logic strips all the chars, it seems.
+        tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
+
+        self.source, self.target = [], []
+        for text in tqdm(list_data, desc=f"Tokenizing"):
+            tokenized = tokenizer(
+                [text[0]],
+                max_length=max_source_length,
+                padding="do_not_pad",
+                truncation=True,
+                return_tensors='pt',
+            )
+            self.source.append(tokenized)
+            self.target.append(float(text[1]))
+        
+        self.bos_token_id = tokenizer.bos_token_id
+
+    def __len__(self):
+        return len(self.source)
+
+    def __getitem__(self, index):
+        source_ids = self.source[index]["input_ids"].squeeze()
+        target_ids = self.target[index]
+        src_mask = self.source[index]["attention_mask"].squeeze()
+        return {"input_ids": source_ids, "attention_mask": src_mask,
+                "decoder_input_ids": torch.LongTensor([self.bos_token_id]),
+                "labels": torch.tensor([target_ids])}
+
+    def sort_key(self, ex):
+        """ Sort using length of source sentences. """
+        return len(ex['input_ids'])
+
+
 class MolTokenizer(PreTrainedTokenizer):
     r"""
     Constructs a Molecular tokenizer. Based on SMILES.

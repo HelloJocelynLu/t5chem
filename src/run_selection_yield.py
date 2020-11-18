@@ -5,13 +5,12 @@ from functools import partial
 import pandas as pd
 import torch
 import torch.nn as nn
-from data_utils import MolTokenizer
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 from transformers import T5Config, TrainingArguments
 
-from data import YieldDataset, data_collator_yield
-from models import T5ForRegression, EarlyStopTrainer
+from data import MolTokenizer, YieldDataset, data_collator_yield
+from models import EarlyStopTrainer, T5ForRegression
 
 
 def add_args(parser): 
@@ -146,7 +145,7 @@ def main():
             dataset = YieldDataset(tokenizer, file, type_path="train", sep_id=sep)
             testset = YieldDataset(tokenizer, file, type_path="test", sep_id=sep)
 
-            if not args.pretrain:
+            if not args.pretrasin:
                 config = T5Config(                                                      
                     vocab_size=len(tokenizer.vocab),
                     pad_token_id=tokenizer.pad_token_id,                                

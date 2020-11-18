@@ -1,67 +1,18 @@
-import os
 import argparse
+import os
+from functools import partial
+
+import pandas as pd
 import scipy
 import torch
 import torch.nn as nn
-import pandas as pd
-from tqdm import tqdm
-from EFGs import standize
-import torch.nn.functional as F
-from functools import partial
+from sklearn.metrics import mean_absolute_error
 from torch.utils.data.dataloader import DataLoader
-from sklearn.metrics import r2_score, mean_absolute_error
-from torch.nn.utils.rnn import pad_sequence
-from data_utils import MolTokenizer
-from early_stop_trainer import EarlyStopTrainer
-from transformers import T5Config, TrainingArguments, T5PreTrainedModel
-from transformers.modeling_t5 import T5Stack
+from tqdm import tqdm
+from transformers import T5Config, TrainingArguments
 
-from torch.utils.data import Dataset
-from typing import Callable, Iterable, List
-
-from run_trainer_qm9 import T5ForRegression
-from run_trainer_yield import data_collator
-
-
-class YieldDatasetFromList(Dataset):
-    def __init__(
-        self,
-        tokenizer,
-        list_data,
-        max_source_length=500,
-    ):
-        super().__init__()
-        # FIXME: the rstrip logic strips all the chars, it seems.
-        tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
-
-        self.source, self.target = [], []
-        for text in tqdm(list_data, desc=f"Tokenizing"):
-            tokenized = tokenizer(
-                [text[0]],
-                max_length=max_source_length,
-                padding="do_not_pad",
-                truncation=True,
-                return_tensors='pt',
-            )
-            self.source.append(tokenized)
-            self.target.append(float(text[1]))
-        
-        self.bos_token_id = tokenizer.bos_token_id
-
-    def __len__(self):
-        return len(self.source)
-
-    def __getitem__(self, index):
-        source_ids = self.source[index]["input_ids"].squeeze()
-        target_ids = self.target[index]
-        src_mask = self.source[index]["attention_mask"].squeeze()
-        return {"input_ids": source_ids, "attention_mask": src_mask,
-                "decoder_input_ids": torch.LongTensor([self.bos_token_id]),
-                "labels": torch.tensor([target_ids])}
-
-    def sort_key(self, ex):
-        """ Sort using length of source sentences. """
-        return len(ex['input_ids'])
+from data import MolTokenizer, YieldDatasetFromList, data_collator_yield
+from models import EarlyStopTrainer, T5ForRegression
 
 
 def add_args(parser): 
@@ -194,7 +145,7 @@ def main():
                 model.load_state_dict(torch.load(os.path.join(args.pretrain,       
                     'pytorch_model.bin'), map_location=lambda storage, loc: storage))
     
-        data_collator_pad1 = partial(data_collator,
+        data_collator_pad1 = partial(data_collator_yield,
                                      pad_token_id=tokenizer.pad_token_id,
                                      percentage=('sigmoid' in args.mode),
                                     )
