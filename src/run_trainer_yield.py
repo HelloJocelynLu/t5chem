@@ -48,6 +48,10 @@ def add_args(parser):
         help="Whether to evaluate.",
     )
     parser.add_argument(
+        "--only_readout", action="store_true",
+        help="Only train read out layer",
+    )
+    parser.add_argument(
         "--mode",
         default='sigmoid',
         type=str,
@@ -195,6 +199,12 @@ def main():
             save_total_limit=args.save_total_limit,
             learning_rate=args.learning_rate,
         )
+
+        if args.only_readout:
+            for param in model.parameters():
+                param.requires_grad = False
+            for param in model.lm_head.parameters():
+                param.requires_grad = True
 
         trainer = EarlyStopTrainer(
             model=model,

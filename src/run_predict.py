@@ -9,7 +9,7 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5ForConditionalGeneration
 
-from .data import MolTokenizer, MolTranslationDataset, data_collator
+from data import MolTokenizer, MolTranslationDataset, data_collator
 
 
 def add_args(parser):
@@ -95,7 +95,7 @@ def main():
     testset = MolTranslationDataset(tokenizer, data_dir=args.data_dir,
                                     max_source_length=args.max_length,
                                     max_target_length=args.max_length,
-                                    type_path="train")
+                                    type_path="test")
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     test_loader = DataLoader(testset, batch_size=args.batch_size,
                              collate_fn=data_collator_pad1)
@@ -116,7 +116,7 @@ def main():
     model.eval()
 
     targets = []
-    with open(os.path.join(args.data_dir, "train.target")) as rf:
+    with open(os.path.join(args.data_dir, "test.target")) as rf:
         for line in rf:
             targets.append(line.strip())
 
