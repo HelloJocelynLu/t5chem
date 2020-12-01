@@ -9,6 +9,7 @@
 
 eval "$(conda shell.bash hook)"
 conda activate torch-env
+python src/run_pretrain.py --data_dir data/pubchem/train_0/ --output_dir models/smiles_pretrain/new_vocab_0 --pretrain models/smiles_pretrain/train_9/ --vocab data/vocab/mol_all_20201109.pt --save_steps 200000 --save_total_limit 2
 #python src/run_trainer_yield.py --data_files data/C_N_yield/MFF_FullCV_* --output_dir models/C_N_Yield/scratch/ --split_idx 2372 2767 --eval --vocab data/vocab/2020_08_09_vocab.pt --num_epoch 100
 #python src/run_trainer_yield.py --data_files data/C_N_yield/MFF_Test1.txt --output_dir models/C_N_Yield/scratch/ --split_idx 3057 --vocab data/vocab/2020_08_09_vocab.pt
 #python src/run_trainer_yield.py --data_files data/C_N_yield/MFF_Test[24].txt --output_dir models/C_N_Yield/scratch/ --split_idx 3055 --vocab data/vocab/2020_08_09_vocab.pt
@@ -31,7 +32,7 @@ conda activate torch-env
 #python src/run_pred_yield.py --data_files data/C_N_yield/out_sample/test* --model_dir models/C_N_Yield/pretrain_rxn --split_idx 0
 
 #python src/run_trainer_yield.py --data_files data/USPTO_yield/Ni_rxns/train.txt --output_dir models/USPTO_yield/Ni_rxns/ --pretrain models/USPTO_yield/Ni_rxns/sigmoid/val/best_cp-40000/ --copy_all_w --eval --split_idx 0 --val_file data/USPTO_yield/Ni_rxns/val.txt --vocab data/vocab/2020_08_09_vocab.pt --batch_size 4 --save_total_limit 1
-python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/train.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
-python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/val.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
-python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/test.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
+#python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/train.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
+#python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/val.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
+#python src/run_pred_yield.py --data_files data/USPTO_yield/Ni_rxns/test.txt --model_dir models/USPTO_yield/Ni_rxns/ --split_idx 1
 

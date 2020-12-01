@@ -1,7 +1,7 @@
 import os
 import argparse
 import torch
-from .data import T5MolTokenizer, LineByLineTextDataset
+from data import T5MolTokenizer, LineByLineTextDataset
 from transformers import T5Config, T5ForConditionalGeneration, Trainer, TrainingArguments,\
     DataCollatorForLanguageModeling
 
@@ -42,7 +42,7 @@ def add_args(parser):
     )
     parser.add_argument(
         "--max_length",
-        default=300,
+        default=150,
         type=int,
         help="The maximum length (for both source and target) after tokenization.",
     )
@@ -96,10 +96,10 @@ def main():
     args = parser.parse_args()
 
     if args.vocab:
-        tokenizer = T5MolTokenizer(vocab_file=args.vocab, mask_token='<mask>')
+        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
     else:
         files = [os.path.join(args.data_dir,x+'.txt') for x in ['train', 'val']]
-        tokenizer = T5MolTokenizer(source_files=files, mask_token='<mask>')
+        tokenizer = T5MolTokenizer(source_files=files)
 
     dataset = LineByLineTextDataset(tokenizer=tokenizer, 
                                   file_path=os.path.join(args.data_dir,'train.txt'),
@@ -114,7 +114,7 @@ def main():
         model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
     else:
         config = T5Config(
-            vocab_size=len(tokenizer.vocab),
+            vocab_size=len(tokenizer),
             pad_token_id=tokenizer.pad_token_id,
             decoder_start_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
@@ -126,8 +126,10 @@ def main():
 
         model = T5ForConditionalGeneration(config)
         if args.pretrain:
+            model.resize_token_embeddings(505)
             model.load_state_dict(torch.load(os.path.join(args.pretrain,
                 'pytorch_model.bin'), map_location=lambda storage, loc: storage))
+            model.resize_token_embeddings(len(tokenizer))
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=True, mlm_probability=0.15

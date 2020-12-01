@@ -34,7 +34,7 @@ class LineByLineTextDataset(Dataset):
                         truncation=True,
                         return_tensors='pt',
                     )
-        return sample['input_ids'].squeeze()
+        return sample['input_ids'].squeeze(0)
       
     def __len__(self):
         return self._len
@@ -310,7 +310,7 @@ class T5MolTokenizer(MolTokenizer):
                 mask_token='<mask>',
                 **kwargs)
         raw_vocab = torch.load(vocab_file)
-        self.vocab = Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
+        self.vocab = torchtext.vocab.Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
                            max_size=max_size-len(task_prefixs))
         extra_to_add = max_size - len(self.vocab)
         cur_added_len = len(task_prefixs)
