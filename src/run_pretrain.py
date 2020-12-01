@@ -1,7 +1,7 @@
 import os
 import argparse
 import torch
-from .data import MolTokenizer, LineByLineTextDataset
+from .data import T5MolTokenizer, LineByLineTextDataset
 from transformers import T5Config, T5ForConditionalGeneration, Trainer, TrainingArguments,\
     DataCollatorForLanguageModeling
 
@@ -96,10 +96,10 @@ def main():
     args = parser.parse_args()
 
     if args.vocab:
-        tokenizer = MolTokenizer(vocab_file=args.vocab, mask_token='<mask>')
+        tokenizer = T5MolTokenizer(vocab_file=args.vocab, mask_token='<mask>')
     else:
         files = [os.path.join(args.data_dir,x+'.txt') for x in ['train', 'val']]
-        tokenizer = MolTokenizer(source_files=files, mask_token='<mask>')
+        tokenizer = T5MolTokenizer(source_files=files, mask_token='<mask>')
 
     dataset = LineByLineTextDataset(tokenizer=tokenizer, 
                                   file_path=os.path.join(args.data_dir,'train.txt'),
@@ -116,10 +116,8 @@ def main():
         config = T5Config(
             vocab_size=len(tokenizer.vocab),
             pad_token_id=tokenizer.pad_token_id,
-            decoder_input_ids=tokenizer.bos_token_id,
-            decoder_start_token_id=tokenizer.bos_token_id,
+            decoder_start_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
-            bos_token_id=tokenizer.bos_token_id,
             output_past=True,
             num_layers=args.num_layers,
             num_heads=args.num_heads,

@@ -300,7 +300,46 @@ class MolTokenizer(PreTrainedTokenizer):
         """
         torch.save(self.vocab, vocab_path)
 
-
+class T5MolTokenizer(MolTokenizer):
+    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:'], max_size=2400, **kwargs):
+        super().__init__(
+                unk_token='<unk>',
+                bos_token='<s>',
+                pad_token='<pad>',
+                eos_token='</s>',
+                mask_token='<mask>',
+                **kwargs)
+        raw_vocab = torch.load(vocab_file)
+        self.vocab = Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
+                           max_size=max_size-len(task_prefixs))
+        extra_to_add = max_size - len(self.vocab)
+        cur_added_len = len(task_prefixs)
+        for i in range(cur_added_len, extra_to_add):
+            task_prefixs.append('<extra_id_{}>'.format(str(i)))
+        self.add_tokens(task_prefixs, special_tokens=True)
+    
+    def get_vocab(self):
+        vocab = {self.convert_ids_to_tokens(i): i for i in range(self.vocab_size)}
+        vocab.update(self.added_tokens_encoder)
+        return vocab
+    def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1 = None):
+        """
+        Build model inputs from a sequence or a pair of sequence for sequence classification tasks
+        by concatenating and adding special tokens.
+        A Mol sequence has the following format:
+        - single sequence: ``<s> X </s>``
+        Args:
+            token_ids_0 (:obj:`List[int]`):
+                List of IDs to which the special tokens will be added
+            token_ids_1 (:obj:`List[int]`, `optional`, defaults to :obj:`None`):
+                Optional second list of IDs for sequence pairs.
+        Returns:
+            :obj:`List[int]`: list of `input IDs <../glossary.html#input-ids>`__ with the appropriate special tokens.
+        """
+        if token_ids_1 is None:
+            return token_ids_0
+        return token_ids_0 + token_ids_1
+                
 def data_collator(batch, pad_token_id):
     whole_batch = {}
     ex = batch[0]
