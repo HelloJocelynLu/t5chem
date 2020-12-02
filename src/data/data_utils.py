@@ -21,7 +21,7 @@ class LineByLineTextDataset(Dataset):
         # `tokenizers` repo everywhere =)
         
         self._file_path = file_path
-        self._len = int(subprocess.check_output("wc -l " + file_path, shell=True).split()[0]) - 1
+        self._len = int(subprocess.check_output("wc -l " + file_path, shell=True).split()[0])
         self.tokenizer = tokenizer
         self.max_length = block_size
         
@@ -50,19 +50,15 @@ class MolTranslationDataset(Dataset):
         max_target_length=500,
     ):
         super().__init__()
-        # FIXME: the rstrip logic strips all the chars, it seems.
-        # tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
 
         self._source_path = os.path.join(data_dir, type_path + ".source")
         self._target_path = os.path.join(data_dir, type_path + ".target")
-        self._len_source = int(subprocess.check_output("wc -l " + self._source_path, shell=True).split()[0]) - 1
-        self._len_target = int(subprocess.check_output("wc -l " + self._target_path, shell=True).split()[0]) - 1
+        self._len_source = int(subprocess.check_output("wc -l " + self._source_path, shell=True).split()[0])
+        self._len_target = int(subprocess.check_output("wc -l " + self._target_path, shell=True).split()[0])
         assert self._len_source == self._len_target, "Source file and target file don't match!"
         self.tokenizer = tokenizer
         self.max_source_len = max_source_length
         self.max_target_len = max_target_length
-
-        self.pad_token_id = tokenizer.pad_token_id
 
     def __len__(self):
         return self._len_source
@@ -87,6 +83,59 @@ class MolTranslationDataset(Dataset):
         source_ids = source_sample["input_ids"].squeeze()
         target_ids = target_sample["input_ids"].squeeze()
         src_mask = source_sample["attention_mask"].squeeze()
+        return {"input_ids": source_ids, "attention_mask": src_mask,
+                "decoder_input_ids": target_ids}
+
+    def sort_key(self, ex):
+        """ Sort using length of source sentences. """
+        return len(ex['input_ids'])
+
+
+class TaskPrefixDataset(Dataset):
+    def __init__(
+        self,
+        tokenizer,
+        data_dir,
+        prefix='',
+        type_path="train",
+        max_source_length=300,
+        max_target_length=100,
+    ):
+        super().__init__()
+
+        self.prefix = prefix
+        self._source_path = os.path.join(data_dir, type_path + ".source")
+        self._target_path = os.path.join(data_dir, type_path + ".target")
+        self._len_source = int(subprocess.check_output("wc -l " + self._source_path, shell=True).split()[0])
+        self._len_target = int(subprocess.check_output("wc -l " + self._target_path, shell=True).split()[0])
+        assert self._len_source == self._len_target, "Source file and target file don't match!"
+        self.tokenizer = tokenizer
+        self.max_source_len = max_source_length
+        self.max_target_len = max_target_length
+
+    def __len__(self):
+        return self._len_source
+
+    def __getitem__(self, idx):
+        source_line = linecache.getline(self._source_path, idx + 1).strip()
+        source_sample = self.tokenizer(
+                        self.prefix+source_line,
+                        max_length=self.max_source_len,
+                        padding="do_not_pad",
+                        truncation=True,
+                        return_tensors='pt',
+                    )
+        target_line = linecache.getline(self._target_path, idx + 1).strip()
+        target_sample = self.tokenizer(
+                        target_line,
+                        max_length=self.max_target_len,
+                        padding="do_not_pad",
+                        truncation=True,
+                        return_tensors='pt',
+                    )
+        source_ids = source_sample["input_ids"].squeeze(0)
+        target_ids = target_sample["input_ids"].squeeze(0)
+        src_mask = source_sample["attention_mask"].squeeze(0)
         return {"input_ids": source_ids, "attention_mask": src_mask,
                 "decoder_input_ids": target_ids}
 

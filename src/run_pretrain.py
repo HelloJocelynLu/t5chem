@@ -126,10 +126,8 @@ def main():
 
         model = T5ForConditionalGeneration(config)
         if args.pretrain:
-            model.resize_token_embeddings(505)
             model.load_state_dict(torch.load(os.path.join(args.pretrain,
                 'pytorch_model.bin'), map_location=lambda storage, loc: storage))
-            model.resize_token_embeddings(len(tokenizer))
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=True, mlm_probability=0.15

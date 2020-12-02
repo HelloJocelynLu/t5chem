@@ -9,7 +9,7 @@ from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
 from transformers.optimization import AdamW, get_constant_schedule
 
-from data import MolTokenizer, MolTranslationDataset, data_collator
+from data import T5MolTokenizer, TaskPrefixDataset, data_collator
 from models import EarlyStopTrainer
 
 def add_args(parser):
@@ -40,10 +40,21 @@ def add_args(parser):
         help="Whether this training should be resumed from pretrained model.",
     )
     parser.add_argument(
-        "--max_length",
+        "--task_prefix",
+        default='Product:',
+        help="Prefix of current task. ('Product:', 'Yield:', 'Fill-Mask:')",
+    )
+    parser.add_argument(
+        "--max_source_length",
         default=300,
         type=int,
-        help="The maximum length (for both source and target) after tokenization.",
+        help="The maximum source length after tokenization.",
+    )
+    parser.add_argument(
+        "--max_target_length",
+        default=100,
+        type=int,
+        help="The maximum target length after tokenization.",
     )
     parser.add_argument(
         "--num_layers",
@@ -119,38 +130,30 @@ def main():
     torch.backends.cudnn.deterministic = True
 
     if args.vocab:
-        tokenizer = MolTokenizer(vocab_file=args.vocab)
+        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
     else:
-        tokenizer = MolTokenizer(source_files=[os.path.join(args.data_dir, x) for
+        tokenizer = T5MolTokenizer(source_files=[os.path.join(args.data_dir, x) for
                                  x in ('train.target', 'train.source')])
-        os.makedirs(args.output_dir, exist_ok=True)
-        tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
+    os.makedirs(args.output_dir, exist_ok=True)
+    tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
 
-    dataset = MolTranslationDataset(tokenizer, data_dir=args.data_dir,
-                                    max_source_length=args.max_length,
-                                    max_target_length=args.max_length,
+    dataset = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
+                                    prefix=args.task_prefix,
+                                    max_source_length=args.max_source_length,
+                                    max_target_length=args.max_target_length,
                                     type_path="train")
 
-    eval_iter = MolTranslationDataset(tokenizer, data_dir=args.data_dir,
-                                      max_source_length=args.max_length,
-                                      max_target_length=args.max_length,
-                                      type_path="val")
+    eval_iter = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
+                                    prefix=args.task_prefix,
+                                    max_source_length=args.max_source_length,
+                                    max_target_length=args.max_target_length,
+                                    type_path="val")
 
-    task_specific_params = {
-        "Reaction": {
-          "early_stopping": True,
-          "max_length": args.max_length,
-          "num_beams": 5,
-          "prefix": "Predict reaction outcomes"
-        }
-    }
     config = T5Config(
         vocab_size=len(tokenizer.vocab),
         pad_token_id=tokenizer.pad_token_id,
-        decoder_input_ids=tokenizer.bos_token_id,
+        decoder_start_token_id=tokenizer.pad_token_id,
         eos_token_id=tokenizer.eos_token_id,
-        bos_token_id=tokenizer.bos_token_id,
-        task_specific_params=task_specific_params,
         output_past=True,
         num_layers=args.num_layers,
         num_heads=args.num_heads,
@@ -161,9 +164,9 @@ def main():
         model = T5ForConditionalGeneration(config)
     else:
         model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
-        if model.config.vocab_size != len(tokenizer.vocab):
+        if model.config.vocab_size != len(tokenizer):
             model.config = config
-            model.resize_token_embeddings(len(tokenizer.vocab))
+            model.resize_token_embeddings(len(tokenizer))
 
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
 
