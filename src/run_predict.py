@@ -147,7 +147,7 @@ def main():
 
     print(loss/len(test_loader.dataset), file=out_file)
     out_file.close()
-    torch.save(predictions,'USPTO_STEREO_predictions.pt')
+
     for i, preds in enumerate(tqdm(predictions, desc='ranking')):
         test_df['prediction_{}'.format(i + 1)] = preds
 
