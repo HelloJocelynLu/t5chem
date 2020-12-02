@@ -9,7 +9,7 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5ForConditionalGeneration
 
-from data import MolTokenizer, MolTranslationDataset, data_collator
+from data import T5MolTokenizer, TaskPrefixDataset, data_collator
 
 
 def add_args(parser):
@@ -88,11 +88,12 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     if args.vocab:
-        tokenizer = MolTokenizer(vocab_file=args.vocab)
+        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
     else:
-        tokenizer = MolTokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
+        tokenizer = T5MolTokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
 
-    testset = MolTranslationDataset(tokenizer, data_dir=args.data_dir,
+    testset = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
+                                    prefix='Product:',
                                     max_source_length=args.max_length,
                                     max_target_length=args.max_length,
                                     type_path="test")
@@ -107,7 +108,7 @@ def main():
           "num_beams": args.num_beams,
           "num_return_sequences": args.num_preds,
           "prefix": "Predict reaction outcomes",
-          "decoder_start_token_id": tokenizer.bos_token_id,
+          "decoder_start_token_id": tokenizer.pad_token_id,
           "repetition_penalty": args.rep_penalty,
         }
     }
