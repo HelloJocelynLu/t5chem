@@ -9,7 +9,7 @@ Project Organization
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
-    ├── data
+    ├── data (.gitignore)
     │   ├── C_N_yield        <- Buchwald–Hartwig reactions (3,955 reactions)
     │   ├── Ni_rxns          <- Ni-catalyzed dicarbofunctionalization. (710 reactions)
     │   ├── STEREO_separated <- USPTO reactions with stereochemistry. (1 million reactions)
@@ -17,7 +17,7 @@ Project Organization
     │
     ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
     │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
+    ├── models (.gitignore) <- Trained and serialized models, model predictions, or model summaries
     │
     ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
     │                         the creator's initials, and a short `-` delimited description, e.g.
@@ -45,19 +45,16 @@ Project Organization
     │   │   └── build_features.py
     │   │
     │   ├── models         <- Scripts about models
-    │   │   ├── models.py  <- T5 model adapted for regression
+    │   │   ├── models.py  <- T5 model adapted for regression (Removed)
     │   │   └── Trainer.py <- A modified Trainer class (:transformer:) that can save
     │   │                     best weights accordin to validation error.
     │   │
-    │   ├── run_pretrain.py        <- Script to train mask-filling pretraining task.
-    │   ├── run_trainer.py         <- Script to train molecular translation task.
-    │   ├── run_trainer_qm9.py     <- Script to train T5 regression model for QM9 data.
-    │   ├── run_trainer_yield.py   <- Script to train T5 regression model for reaction yields.
-    │   ├── run_selection_yield.py <- Script to train and test reaction yields with only 5%, 10% 20% reactions.
-    │   ├── run_selector.py        <- Script to train and selection out-of-sample reactions based on predicted yields.
-    │   ├── run_predict.py         <- Script to test molecular translation, given a trained model.
-    │   ├── run_pred_qm9.py        <- Script to test a trained T5 regression model for QM9 data.
-    │   ├── run_pred_yield.py      <- Script to test a trained T5 regression model for reaction yields.
+    │   ├── run_pretrain.py         <- Script to train mask-filling pretraining task.
+    │   ├── run_trainer.py          <- Script to train molecular translation task.
+    │   ├── iterative_selector.py   <- Script to select high-yield reactions iteratively.
+    │   ├── rxn_selector.py         <- Script to train and selection out-of-sample reactions based on predicted yields.
+    │   ├── run_predict.py          <- Script to test molecular translation, given a trained model.
+    │   ├── evaluate_predictions.py <- Evaluate prediction results from T5ConditionalGeneration.
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
     │       └── visualize.py

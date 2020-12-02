@@ -149,36 +149,43 @@ class YieldDatasetFromList(Dataset):
         self,
         tokenizer,
         list_data,
-        max_source_length=500,
+        prefix='',
+        max_source_length=300,
+        max_target_length=5,
     ):
         super().__init__()
-        # FIXME: the rstrip logic strips all the chars, it seems.
-        tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
 
         self.source, self.target = [], []
-        for text in tqdm(list_data, desc=f"Tokenizing"):
+        self.num_target = []
+        for text in tqdm(list_data, desc=f"Tokenizing..."):
+            rxn, _yield = text.strip().split()
             tokenized = tokenizer(
-                [text[0]],
+                [prefix+rxn],
                 max_length=max_source_length,
                 padding="do_not_pad",
                 truncation=True,
                 return_tensors='pt',
             )
+            tokenized_target = tokenizer(
+                ['{:.2f}'.format(float(_yield))],
+                max_length=max_target_length,
+                padding="do_not_pad",
+                truncation=True,
+                return_tensors='pt',
+            )
             self.source.append(tokenized)
-            self.target.append(float(text[1]))
-        
-        self.bos_token_id = tokenizer.bos_token_id
+            self.num_target.append(float(_yield))
+            self.target.append(tokenized_target)
 
     def __len__(self):
         return len(self.source)
 
     def __getitem__(self, index):
-        source_ids = self.source[index]["input_ids"].squeeze()
-        target_ids = self.target[index]
-        src_mask = self.source[index]["attention_mask"].squeeze()
+        source_ids = self.source[index]["input_ids"].squeeze(0)
+        target_ids = self.target[index]["input_ids"].squeeze(0)
+        src_mask = self.source[index]["attention_mask"].squeeze(0)
         return {"input_ids": source_ids, "attention_mask": src_mask,
-                "decoder_input_ids": torch.LongTensor([self.bos_token_id]),
-                "labels": torch.tensor([target_ids])}
+                "labels": target_ids}
 
     def sort_key(self, ex):
         """ Sort using length of source sentences. """
@@ -402,86 +409,9 @@ def data_collator(batch, pad_token_id):
                                         padding_value=padding_value)
     source_ids, source_mask, y = \
         whole_batch["input_ids"], whole_batch["attention_mask"], whole_batch["decoder_input_ids"]
-    y_ids = y[:, :-1].contiguous()
-    lm_labels = y[:, 1:].clone()
-    lm_labels[y[:, 1:] == padding_value] = -100
+    # y_ids = y[:, :-1].contiguous()
+    # lm_labels = y[:, 1:].clone()
+    # lm_labels[y[:, 1:] == padding_value] = -100
     return {'input_ids': source_ids, 'attention_mask': source_mask,
-            'decoder_input_ids': y_ids, 'labels': lm_labels}
-
-class YieldDataset(Dataset):
-    def __init__(
-        self,
-        tokenizer,
-        data_path,
-        type_path="train",
-        max_source_length=500,
-        n_obs=None,
-        sep_id=[2768],
-        prefix="",
-    ):
-        super().__init__()
-        # FIXME: the rstrip logic strips all the chars, it seems.
-        tok_name = tokenizer.__class__.__name__.lower().rstrip("tokenizer")
-
-        dataframe = pd.read_csv(data_path, sep='\s+', header=None)
-        if sep_id[0] > 0:
-            if type_path == 'train':
-                dataframe = dataframe.iloc[:sep_id[0]]
-            elif type_path == 'val':
-                if len(sep_id) == 1:
-                    dataframe = dataframe.iloc[sep_id[0]:]
-                else:
-                    dataframe = dataframe.iloc[sep_id[0]:sep_id[1]]
-            else:
-                if len(sep_id) == 1:
-                    dataframe = dataframe.iloc[sep_id[0]:]
-                else:
-                    dataframe = dataframe.iloc[sep_id[1]:]
-        self.source = []
-        for text in tqdm(dataframe[0], desc=f"Tokenizing {data_path}"):
-            tokenized = tokenizer(
-                [text],
-                max_length=max_source_length,
-                padding="do_not_pad",
-                truncation=True,
-                return_tensors='pt',
-            )
-            self.source.append(tokenized)
-
-        self.target = [float(x) for x in dataframe[1]]
-        
-        if n_obs is not None:
-            self.source = self.source[:n_obs]
-        self.bos_token_id = tokenizer.bos_token_id
-
-    def __len__(self):
-        return len(self.source)
-
-    def __getitem__(self, index):
-        source_ids = self.source[index]["input_ids"].squeeze()
-        target_ids = self.target[index]
-        src_mask = self.source[index]["attention_mask"].squeeze()
-        return {"input_ids": source_ids, "attention_mask": src_mask,
-                "decoder_input_ids": torch.LongTensor([self.bos_token_id]),
-                "labels": torch.tensor([target_ids])}
-
-    def sort_key(self, ex):
-        """ Sort using length of source sentences. """
-        return len(ex['input_ids'])
-
-
-def data_collator_yield(batch, pad_token_id, percentage=False):
-    whole_batch = {}
-    ex = batch[0]
-    for key in ex.keys():
-        if percentage and 'labels' in key:
-            whole_batch[key] = torch.Tensor([x[key] for x in batch])/100
-            continue
-        if 'mask' in key:
-            padding_value = 0
-        else:
-            padding_value = pad_token_id
-        whole_batch[key] = pad_sequence([x[key] for x in batch],
-                                        batch_first=True,
-                                        padding_value=padding_value)
-    return whole_batch
+            # 'decoder_input_ids': y_ids, 
+            'labels': y}

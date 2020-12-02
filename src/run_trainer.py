@@ -149,23 +149,21 @@ def main():
                                     max_target_length=args.max_target_length,
                                     type_path="val")
 
-    config = T5Config(
-        vocab_size=len(tokenizer.vocab),
-        pad_token_id=tokenizer.pad_token_id,
-        decoder_start_token_id=tokenizer.pad_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-        output_past=True,
-        num_layers=args.num_layers,
-        num_heads=args.num_heads,
-        d_model=args.d_model,
-        )
-
     if not args.pretrain:
+        config = T5Config(
+            vocab_size=len(tokenizer),
+            pad_token_id=tokenizer.pad_token_id,
+            decoder_start_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+            output_past=True,
+            num_layers=args.num_layers,
+            num_heads=args.num_heads,
+            d_model=args.d_model,
+            )
         model = T5ForConditionalGeneration(config)
     else:
         model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
         if model.config.vocab_size != len(tokenizer):
-            model.config = config
             model.resize_token_embeddings(len(tokenizer))
 
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
