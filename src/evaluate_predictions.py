@@ -3,6 +3,7 @@ import argparse
 import scipy
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import pandas as pd
+import numpy as np
 
 
 def add_args(parser):
@@ -47,8 +48,13 @@ def main():
                                                                      invalid_smiles/len(predictions)*100))
     
     else:
+        predictions['prediction_1'] = pd.to_numeric(predictions['prediction_1'], errors='coerce')
+        predictions = predictions.replace(np.nan, 0, regex=True)
         MAE = mean_absolute_error(predictions['target'], predictions['prediction_1'])      
         MSE = mean_squared_error(predictions['target'], predictions['prediction_1'])
         slope, intercept, r_value, p_value, std_err = \
             scipy.stats.linregress(predictions['prediction_1'], predictions['target'])
-        print("MAE: {}    MSE: {}    r2: {}".format(MAE, MSE, r_value**2)
+        print("MAE: {}    MSE: {}    r2: {}".format(MAE, MSE**0.5, r_value**2))
+
+if __name__ == "__main__":
+    main()

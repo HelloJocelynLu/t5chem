@@ -83,7 +83,7 @@ def main():
     tokenizer = T5MolTokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
 
     testset = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
-                                    prefix='Product:',
+                                    prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
                                     type_path="test")

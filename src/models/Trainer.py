@@ -16,7 +16,10 @@ class EarlyStopTrainer(Trainer):
         eval_dataloader = self.get_eval_dataloader(eval_dataset)
         output = self.prediction_loop(eval_dataloader, description="Evaluation")
         self.log(output.metrics)
-        cur_loss = output.metrics['eval_loss']
+        if 'eval_mse_loss' in output.metrics:
+            cur_loss = output.metrics['eval_mse_loss']
+        else:
+            cur_loss = output.metrics['eval_loss']
         if self.min_eval_loss >= cur_loss:
             self.min_eval_loss = cur_loss
             for f in Path(self.args.output_dir).glob('best_cp-*'):

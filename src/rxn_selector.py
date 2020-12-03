@@ -84,7 +84,8 @@ def main():
     
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    tokenizer = T5MolTokenizer(vocab_file=args.vocab)
+    tokenizer = T5MolTokenizer(vocab_file=args.vocab, prefix='Yield:',
+            max_target_length=5)
     os.makedirs(args.output_dir, exist_ok=True)
     tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
 

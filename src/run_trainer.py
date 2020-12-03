@@ -116,6 +116,24 @@ def add_args(parser):
     )
 
 
+def CalMSELoss(PredictionOutput, tokenizer):
+    predictions = PredictionOutput.predictions
+    predictions = torch.argmax(torch.Tensor(predictions), -1)
+    label_ids = PredictionOutput.label_ids
+    preds, labels = [], []
+    for pred, label in zip(predictions, label_ids):
+        try:
+            num_pred = float(tokenizer.decode(pred, skip_special_tokens=True, 
+                clean_up_tokenization_spaces=False))
+        except ValueError:
+            num_pred = 0
+        preds.append(num_pred)
+        labels.append(float(tokenizer.decode(label, skip_special_tokens=True,
+            clean_up_tokenization_spaces=False)))
+    loss_fcn = nn.MSELoss()
+    loss = loss_fcn(torch.Tensor(preds), torch.Tensor(labels))
+    return {'mse_loss': loss.item()}
+
 def main():
     parser = argparse.ArgumentParser()
     add_args(parser)
@@ -149,24 +167,29 @@ def main():
                                     max_target_length=args.max_target_length,
                                     type_path="val")
 
+    config = T5Config(
+        vocab_size=len(tokenizer),
+        pad_token_id=tokenizer.pad_token_id,
+        decoder_start_token_id=tokenizer.pad_token_id,
+        eos_token_id=tokenizer.eos_token_id,
+        output_past=True,
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
+        d_model=args.d_model,
+        )
     if not args.pretrain:
-        config = T5Config(
-            vocab_size=len(tokenizer),
-            pad_token_id=tokenizer.pad_token_id,
-            decoder_start_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
-            output_past=True,
-            num_layers=args.num_layers,
-            num_heads=args.num_heads,
-            d_model=args.d_model,
-            )
         model = T5ForConditionalGeneration(config)
     else:
         model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
         if model.config.vocab_size != len(tokenizer):
+            model.config = config
             model.resize_token_embeddings(len(tokenizer))
 
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
+    if args.task_prefix == 'Yield:':
+        compute_metrics = partial(CalMSELoss, tokenizer=tokenizer)
+    else:
+        compute_metrics = None
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -213,7 +236,8 @@ def main():
         data_collator=data_collator_pad1,
         train_dataset=dataset,
         eval_dataset=eval_iter,
-        prediction_loss_only=True,
+#        prediction_loss_only=True,
+        compute_metrics = compute_metrics,
         optimizers=(optimizer, lr_scheduler),
     )
     
