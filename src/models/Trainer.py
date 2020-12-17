@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from transformers import Trainer
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup, \
-        get_constant_schedule_with_warmup
+        get_constant_schedule_with_warmup, get_cosine_schedule_with_warmup
 
 class EarlyStopTrainer(Trainer):
     """
@@ -66,8 +66,16 @@ class EarlyStopTrainer(Trainer):
                 self.optimizer, num_warmup_steps=self.args.warmup_steps
             )
 
-        else:
+        elif self.lr_scheduler == 'cosine':
+            self.lr_scheduler = get_cosine_schedule_with_warmup(
+                self.optimizer,
+                num_warmup_steps=self.args.warmup_steps,
+                num_training_steps=num_training_steps,
+            )
 
+        else:
             self.lr_scheduler = get_linear_schedule_with_warmup(
-                self.optimizer, num_warmup_steps=self.args.warmup_steps, num_training_steps=num_training_steps
+                self.optimizer,
+                num_warmup_steps=self.args.warmup_steps,
+                num_training_steps=num_training_steps,
             )

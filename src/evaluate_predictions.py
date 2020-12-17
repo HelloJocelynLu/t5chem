@@ -14,6 +14,12 @@ def add_args(parser):
         help="The path to prediction result to be evaluate.",
     )
     parser.add_argument(
+        "--average",
+        default=0,
+        type=int,
+        help="whether to use average if multiple predictions exist."
+    )
+    parser.add_argument(
         "--type",
         type=str,
         default='text',
@@ -50,13 +56,20 @@ def main():
                                                                      invalid_smiles/len(predictions)*100))
     
     else:
-        predictions['prediction_1'] = pd.to_numeric(predictions['prediction_1'], errors='coerce')
+        for i in range(1, num_preds+1):
+            predictions['prediction_{}'.format(i)] = pd.to_numeric(predictions['prediction_{}'.format(i)], errors='coerce')
         predictions = predictions.replace(np.nan, 0, regex=True)
-        MAE = mean_absolute_error(predictions['target'], predictions['prediction_1'])      
-        MSE = mean_squared_error(predictions['target'], predictions['prediction_1'])
+        if args.average > num_preds:
+            print("WARNING: only {} predictions exists, but {} required. Will use all.".format(num_preds, args.average))
+            args.average = num_preds
+        if args.average == 0:
+            args.average = num_preds
+        predictions['prediction'] = predictions[['prediction_{}'.format(i) for i in range(1,args.average+1)]].mean(1)
+        MAE = mean_absolute_error(predictions['target'], predictions['prediction'])      
+        MSE = mean_squared_error(predictions['target'], predictions['prediction'])
         slope, intercept, r_value, p_value, std_err = \
-            scipy.stats.linregress(predictions['prediction_1'], predictions['target'])
-        print("MAE: {}    MSE: {}    r2: {}".format(MAE, MSE**0.5, r_value**2))
+            scipy.stats.linregress(predictions['prediction'], predictions['target'])
+        print("MAE: {}    RMSE: {}    r2: {}".format(MAE, MSE**0.5, r_value**2))
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,6 @@ import torch.nn as nn
 import numpy as np
 from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
-from transformers.optimization import AdamW, get_constant_schedule
 
 from data import T5MolTokenizer, TaskPrefixDataset, data_collator
 from models import EarlyStopTrainer
@@ -37,8 +36,9 @@ def add_args(parser):
         help="Vocabulary file to load.",
     )
     parser.add_argument(
-        "--constant_lr", action="store_true",
-        help="Whether to use constant learning rate.",
+        "--lr_scheduler",
+        default='linear',
+        help="learning rate scheduler to use (linear, cosine or constant)",
     )
     parser.add_argument(
         "--continued", action="store_true",
@@ -149,11 +149,6 @@ def main():
     # unless you tell it to be deterministic
     torch.backends.cudnn.deterministic = True
 
-    if args.constant_lr:
-        scheduler = 'constant'
-    else:
-        scheduler = None
-
     if args.vocab:
         tokenizer = T5MolTokenizer(vocab_file=args.vocab)
     else:
@@ -226,7 +221,7 @@ def main():
         train_dataset=dataset,
         eval_dataset=eval_iter,
         compute_metrics = compute_metrics,
-        optimizers = (None, scheduler)
+        optimizers = (None, args.lr_scheduler)
     )
     
     if not args.continued:
