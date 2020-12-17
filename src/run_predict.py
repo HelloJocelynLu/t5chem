@@ -94,10 +94,9 @@ def main():
     task_specific_params = {
         "Reaction": {
           "early_stopping": True,
-          "max_length": args.max_target_length,
+          "max_length": args.max_target_length+1,
           "num_beams": args.num_beams,
           "num_return_sequences": args.num_preds,
-          "prefix": "Predict reaction outcomes",
           "decoder_start_token_id": tokenizer.pad_token_id,
           "repetition_penalty": args.rep_penalty,
         }
@@ -109,7 +108,7 @@ def main():
     targets = []
     with open(os.path.join(args.data_dir, "test.target")) as rf:
         for line in rf:
-            targets.append(line.strip())
+            targets.append(line.strip()[:args.max_target_length])
 
     test_df = pd.DataFrame(targets)
     test_df.columns = ['target']
@@ -118,22 +117,19 @@ def main():
     if not args.prediction:
         args.prediction = os.path.join(args.model_dir, 'predictions.csv')
     
-    loss = 0.0
     for batch in tqdm(test_loader, desc="prediction"):
 
         for k, v in batch.items():
             if isinstance(v, torch.Tensor):
                 batch[k] = v.to(device)
+        del batch['labels']
         with torch.no_grad():
             outputs = model.generate(**batch, **task_specific_params['Reaction'])
-            loss += model(**batch)[0].item()
         for i,pred in enumerate(outputs):
             prod = tokenizer.decode(pred, skip_special_tokens=True,
                 clean_up_tokenization_spaces=False)
 
             predictions[i % args.num_preds].append(prod)
-
-    print('Test Loss: {:.5f}'.format(loss/len(test_loader.dataset)))
 
     for i, preds in enumerate(predictions):
         test_df['prediction_{}'.format(i + 1)] = preds

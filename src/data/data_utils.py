@@ -373,6 +373,9 @@ class T5MolTokenizer(MolTokenizer):
         for i in range(cur_added_len, extra_to_add):
             task_prefixs.append('<extra_id_{}>'.format(str(i)))
         self.add_tokens(task_prefixs, special_tokens=True)
+        self.unique_no_split_tokens = sorted(
+            set(self.unique_no_split_tokens).union(set(self.all_special_tokens))
+        )
     
     def get_vocab(self):
         vocab = {self.convert_ids_to_tokens(i): i for i in range(self.vocab_size)}

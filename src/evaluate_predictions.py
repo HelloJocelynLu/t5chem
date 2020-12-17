@@ -23,7 +23,7 @@ def add_args(parser):
 
 def get_rank(row, base, max_rank):
     for i in range(1, max_rank+1):
-        if row['target'] == standize(row['{}{}'.format(base, i)]):
+        if row['target'] == row['{}{}'.format(base, i)]:
             return i
     return 0
 
@@ -38,6 +38,8 @@ def main():
     num_preds = len(predictions.columns)-1
 
     if args.type == 'text':
+        for i in range(1, num_preds+1):
+            predictions['prediction_{}'.format(i)] = predictions['prediction_{}'.format(i)].apply(standize)
         predictions['rank'] = predictions.apply(lambda row: get_rank(row, 'prediction_', num_preds), axis=1)
 
         correct = 0

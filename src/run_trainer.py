@@ -5,6 +5,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
+import numpy as np
 from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
 from transformers.optimization import AdamW, get_constant_schedule
@@ -34,6 +35,10 @@ def add_args(parser):
         "--vocab",
         default='',
         help="Vocabulary file to load.",
+    )
+    parser.add_argument(
+        "--constant_lr", action="store_true",
+        help="Whether to use constant learning rate.",
     )
     parser.add_argument(
         "--continued", action="store_true",
@@ -93,11 +98,6 @@ def add_args(parser):
         help="The initial learning rate for Adam.",
     )
     parser.add_argument(
-        "--constant_lr",
-        action="store_true",
-        help="Whether to apply constant learning rate.",
-    )
-    parser.add_argument(
         "--fp16",
         action="store_true",
         help="Whether to use 16-bit (mixed) precision training (through NVIDIA apex) instead of 32-bit training.",
@@ -118,7 +118,7 @@ def add_args(parser):
 
 def CalMSELoss(PredictionOutput, tokenizer):
     predictions = PredictionOutput.predictions
-    predictions = torch.argmax(torch.Tensor(predictions), -1)
+    predictions = torch.argmax(torch.Tensor(predictions[0]), -1)
     label_ids = PredictionOutput.label_ids
     preds, labels = [], []
     for pred, label in zip(predictions, label_ids):
@@ -138,7 +138,9 @@ def main():
     parser = argparse.ArgumentParser()
     add_args(parser)
     args = parser.parse_args()
-    
+
+    torch.cuda.manual_seed(8570) 
+    np.random.seed(8570)
     torch.manual_seed(8570) 
     # this one is needed for torchtext random call (shuffled iterator) 
     # in multi gpu it ensures datasets are read in the same order 
@@ -146,6 +148,11 @@ def main():
     # some cudnn methods can be random even after fixing the seed 
     # unless you tell it to be deterministic
     torch.backends.cudnn.deterministic = True
+
+    if args.constant_lr:
+        scheduler = 'constant'
+    else:
+        scheduler = None
 
     if args.vocab:
         tokenizer = T5MolTokenizer(vocab_file=args.vocab)
@@ -161,11 +168,17 @@ def main():
                                     max_target_length=args.max_target_length,
                                     type_path="train")
 
-    eval_iter = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
-                                    prefix=args.task_prefix,
-                                    max_source_length=args.max_source_length,
-                                    max_target_length=args.max_target_length,
-                                    type_path="val")
+    do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
+    if do_eval:
+        eval_strategy = "steps"
+        eval_iter = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
+                                      prefix=args.task_prefix,
+                                      max_source_length=args.max_source_length,
+                                      max_target_length=args.max_target_length,
+                                      type_path="val")
+    else:
+        eval_strategy = "no"
+        eval_iter = None
 
     config = T5Config(
         vocab_size=len(tokenizer),
@@ -195,40 +208,16 @@ def main():
         output_dir=args.output_dir,
         overwrite_output_dir=True,
         do_train=True,
-        do_eval=True,
         fp16=args.fp16,
-        evaluate_during_training=True,
+        evaluation_strategy=eval_strategy,
         num_train_epochs=args.num_epoch,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
         learning_rate=args.learning_rate,
+        prediction_loss_only=(compute_metrics is None),
     )
-
-    if args.constant_lr:
-        no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": training_args.weight_decay,
-            },
-            {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-                "weight_decay": 0.0,
-            },
-        ]
-        optimizer = AdamW(
-            optimizer_grouped_parameters,
-            lr=training_args.learning_rate,
-            eps=training_args.adam_epsilon,
-        )
-        lr_scheduler = get_constant_schedule(
-            optimizer
-        )
-    else:
-        optimizer = None
-        lr_scheduler = None
 
     trainer = EarlyStopTrainer(
         model=model,
@@ -236,15 +225,16 @@ def main():
         data_collator=data_collator_pad1,
         train_dataset=dataset,
         eval_dataset=eval_iter,
-#        prediction_loss_only=True,
         compute_metrics = compute_metrics,
-        optimizers=(optimizer, lr_scheduler),
+        optimizers = (None, scheduler)
     )
     
     if not args.continued:
         trainer.train()
     else:
         trainer.train(model_path=args.pretrain)
+    print(args)
+    print("logging dir: {}".format(training_args.logging_dir))
     trainer.save_model(args.output_dir)
 
 
