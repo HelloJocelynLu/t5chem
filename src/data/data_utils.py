@@ -357,7 +357,7 @@ class MolTokenizer(PreTrainedTokenizer):
         torch.save(self.vocab, vocab_path)
 
 class T5MolTokenizer(MolTokenizer):
-    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:'], max_size=2400, **kwargs):
+    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:'], max_size=2400, **kwargs):
         super().__init__(
                 unk_token='<unk>',
                 bos_token='<s>',

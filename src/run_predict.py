@@ -82,11 +82,17 @@ def main():
 
     tokenizer = T5MolTokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
 
+    if os.path.isfile(args.data_dir):
+        args.data_dir, base = os.path.split(args.data_dir)
+        base = base.split('.')[0]
+    else:
+        base = "test"
+
     testset = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
                                     prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
-                                    type_path="test")
+                                    type_path=base)
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     test_loader = DataLoader(testset, batch_size=args.batch_size,
                              collate_fn=data_collator_pad1)
@@ -106,7 +112,7 @@ def main():
     model.eval()
 
     targets = []
-    with open(os.path.join(args.data_dir, "test.target")) as rf:
+    with open(os.path.join(args.data_dir, base+".target")) as rf:
         for line in rf:
             targets.append(line.strip()[:args.max_target_length])
 

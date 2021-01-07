@@ -110,24 +110,23 @@ def main():
                                     block_size=args.max_length,
                                     )
 
-    if args.continued:
-        model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
-    else:
-        config = T5Config(
-            vocab_size=len(tokenizer),
-            pad_token_id=tokenizer.pad_token_id,
-            decoder_start_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
-            output_past=True,
-            num_layers=args.num_layers,
-            num_heads=args.num_heads,
-            d_model=args.d_model,
-            )
-
+    config = T5Config(
+        vocab_size=len(tokenizer),
+        pad_token_id=tokenizer.pad_token_id,
+        decoder_start_token_id=tokenizer.pad_token_id,
+        eos_token_id=tokenizer.eos_token_id,
+        output_past=True,
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
+        d_model=args.d_model,
+        )
+    if not args.pretrain:
         model = T5ForConditionalGeneration(config)
-        if args.pretrain:
-            model.load_state_dict(torch.load(os.path.join(args.pretrain,
-                'pytorch_model.bin'), map_location=lambda storage, loc: storage))
+    else:
+        model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
+        if model.config.vocab_size != len(tokenizer):
+            model.config = config
+            model.resize_token_embeddings(len(tokenizer))
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=True, mlm_probability=0.15
@@ -137,14 +136,14 @@ def main():
         output_dir=args.output_dir,
         overwrite_output_dir=True,
         do_train=True,
-        do_eval=True,
-        evaluate_during_training=True,
+        evaluation_strategy="steps",
         num_train_epochs=args.num_epoch,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
         learning_rate=args.learning_rate,
+        prediction_loss_only=True,
     )
 
     trainer = Trainer(
@@ -153,7 +152,6 @@ def main():
         data_collator=data_collator,
         train_dataset=dataset,
         eval_dataset=eval_iter,
-        prediction_loss_only=True,
     )
 
     if not args.continued:
