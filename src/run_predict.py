@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5ForConditionalGeneration
 
-from data import T5MolTokenizer, TaskPrefixDataset, data_collator
+from data import T5MolTokenizer, T5SelfiesTokenizer, TaskPrefixDataset, data_collator
 
 
 def add_args(parser):

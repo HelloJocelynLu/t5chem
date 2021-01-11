@@ -7,6 +7,7 @@ from typing import List, Optional
 import torch
 import torchtext
 import pandas as pd
+import selfies as sf
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
@@ -356,6 +357,168 @@ class MolTokenizer(PreTrainedTokenizer):
         """
         torch.save(self.vocab, vocab_path)
 
+class SelfiesTokenizer(PreTrainedTokenizer):
+    r"""
+    Constructs a Molecular tokenizer. Based on SMILES.
+    This tokenizer inherits from :class:`~transformers.PreTrainedTokenizer` which contains most of the methods. Users
+    should refer to the superclass for more information regarding methods.
+    Args:
+        vocab_file (:obj:`string`, `optional`, defaults to ''):
+            File containing the vocabulary (torchtext.vocab.Vocab class).
+        source_files (:obj:`string`, `optional`, defaults to ''):
+            File containing source data files, vocabulary would be built based on the source file(s).
+        unk_token (:obj:`string`, `optional`, defaults to '<unk>'):
+            The unknown token. A token that is not in the vocabulary cannot be converted to an ID and is set to be this
+            token instead.
+        bos_token (:obj:`string`, `optional`, defaults to '<s>'):
+            string: a beginning of sentence token.
+        pad_token (:obj:`string`, `optional`, defaults to "<blank>"):
+            The token used for padding, for example when batching sequences of different lengths.
+        eos_token (:obj:`string`, `optional`, defaults to '</s>'):
+            string: an end of sentence token.
+        **kwargs：
+            Arguments passed to `~transformers.PreTrainedTokenizer`
+    """
+
+    def __init__(
+        self,
+        vocab_file='',
+        source_files='',
+        unk_token='<unk>',
+        bos_token='<s>',
+        pad_token="<blank>",
+        eos_token='</s>',
+        vocab_size=None,
+        **kwargs
+    ):
+        super().__init__(
+            unk_token=unk_token,
+            bos_token=bos_token,
+            pad_token=pad_token,
+            eos_token=eos_token,
+            **kwargs)
+
+        self.create_vocab(vocab_file=vocab_file, source_files=source_files, vocab_size=vocab_size)
+
+    @property
+    def vocab_size(self):
+        return len(self.vocab)
+
+    def merge_vocabs(self, vocabs, vocab_size=None):
+        """
+        Merge individual vocabularies (assumed to be generated from disjoint
+        documents) into a larger vocabulary.
+        Args:
+            vocabs: `torchtext.vocab.Vocab` vocabularies to be merged
+            vocab_size: `int` the final vocabulary size. `None` for no limit.
+        Return:
+            `torchtext.vocab.Vocab`
+        """
+        merged = sum([vocab.freqs for vocab in vocabs], Counter())
+        return torchtext.vocab.Vocab(merged,
+                                     specials=list(self.special_tokens_map.values()),
+                                     max_size=vocab_size)
+
+    def create_vocab(self, vocab_file=None, source_files=None, vocab_size=None):
+        """
+        Create a vocabulary from current vocabulary file or from source file(s).
+        Args:
+            vocab_file (:obj:`string`, `optional`, defaults to ''):
+                File containing the vocabulary (torchtext.vocab.Vocab class).
+            source_files (:obj:`string`, `optional`, defaults to ''):
+                File containing source data files, vocabulary would be built based on the source file(s).
+        """
+        if (not vocab_file) and (not source_files):
+            self.vocab = []
+        if vocab_file:
+            if not os.path.isfile(vocab_file):
+                raise ValueError(
+                    "Can't find a vocabulary file at path '{}'.".format(vocab_file)
+                )
+            else:
+                self.vocab = torch.load(vocab_file)
+
+        if source_files:
+            if isinstance(source_files, str):
+                if not os.path.isfile(source_files):
+                    raise ValueError(
+                        "Can't find a source file at path '{}'.".format(source_files)
+                    )
+                else:
+                    source_files = [source_files]
+            counter = {}
+            vocabs = {}
+            for i, source_file in enumerate(source_files):
+                counter[i] = Counter()
+                with open(source_file) as rf:
+                    for line in tqdm(rf, desc='Generating {}'.format(source_file)):
+                        try:
+                            items = self._tokenize(line.strip())
+                            counter[i].update(items)
+                        except AssertionError:
+                            print(line.strip())
+                specials = list(self.special_tokens_map.values())
+                vocabs[i] = torchtext.vocab.Vocab(counter[i], specials=specials)
+            self.vocab = self.merge_vocabs([vocabs[i] for i in range(len(source_files))], vocab_size=vocab_size)
+
+    def get_vocab(self):
+        return self.vocab
+
+    def _tokenize(self, text):
+        """
+        Tokenize a SMILES molecule or reaction
+        """
+        regex = sf.encoder(text)
+        tokens = list(sf.split_selfies(encoded_selfies))
+        return tokens
+
+    def _convert_token_to_id(self, token):
+        """ Converts a token (str) in an id using the vocab. """
+        assert isinstance(self.vocab, torchtext.vocab.Vocab),\
+            'No vocabulary found! Need to be generated at initialization or using .create_vocab method.'
+        return self.vocab.stoi[token]
+
+    def _convert_id_to_token(self, index):
+        """Converts an index (integer) in a token (str) using the vocab."""
+        assert isinstance(self.vocab, torchtext.vocab.Vocab),\
+            'No vocabulary found! Need to be generated at initialization or using .create_vocab method.'
+        return self.vocab.itos[index]
+
+    def convert_tokens_to_string(self, tokens):
+        """ Converts a sequence of tokens (string) in a single string. """
+        out_selfies = "".join(tokens).strip()
+        out_string = sf.decoder(out_selfies)
+        return out_string
+
+    def build_inputs_with_special_tokens(
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
+    ) -> List[int]:
+        """
+        Build model inputs from a sequence or a pair of sequence for sequence classification tasks
+        by concatenating and adding special tokens.
+        A Mol sequence has the following format:
+        - single sequence: ``<s> X </s>``
+        Args:
+            token_ids_0 (:obj:`List[int]`):
+                List of IDs to which the special tokens will be added
+            token_ids_1 (:obj:`List[int]`, `optional`, defaults to :obj:`None`):
+                Optional second list of IDs for sequence pairs.
+        Returns:
+            :obj:`List[int]`: list of `input IDs <../glossary.html#input-ids>`__ with the appropriate special tokens.
+        """
+        return [self.bos_token_id] + token_ids_0 + [self.eos_token_id]
+
+    def save_vocabulary(self, vocab_path):
+        """
+        Save the sentencepiece vocabulary (copy original file) and special tokens file to a directory.
+        Args:
+            vocab_path (:obj:`str`):
+                The directory in which to save the vocabulary.
+        Returns:
+            :obj:`Tuple(str)`: Paths to the files saved.
+        """
+        torch.save(self.vocab, vocab_path)
+
 class T5MolTokenizer(MolTokenizer):
     def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:'], max_size=2400, **kwargs):
         super().__init__(
@@ -418,3 +581,46 @@ def data_collator(batch, pad_token_id):
     return {'input_ids': source_ids, 'attention_mask': source_mask,
             # 'decoder_input_ids': y_ids, 
             'labels': y}
+
+class T5SelfiesTokenizer(SelfiesTokenizer):
+    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:'], max_size=2400, **kwargs):
+        super().__init__(
+                unk_token='<unk>',
+                bos_token='<s>',
+                pad_token='<pad>',
+                eos_token='</s>',
+                mask_token='<mask>',
+                **kwargs)
+        raw_vocab = torch.load(vocab_file)
+        self.vocab = torchtext.vocab.Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
+                           max_size=max_size-len(task_prefixs))
+        extra_to_add = max_size - len(self.vocab)
+        cur_added_len = len(task_prefixs)
+        for i in range(cur_added_len, extra_to_add):
+            task_prefixs.append('<extra_id_{}>'.format(str(i)))
+        self.add_tokens(task_prefixs, special_tokens=True)
+        self.unique_no_split_tokens = sorted(
+            set(self.unique_no_split_tokens).union(set(self.all_special_tokens))
+        )
+    
+    def get_vocab(self):
+        vocab = {self.convert_ids_to_tokens(i): i for i in range(self.vocab_size)}
+        vocab.update(self.added_tokens_encoder)
+        return vocab
+    def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1 = None):
+        """
+        Build model inputs from a sequence or a pair of sequence for sequence classification tasks
+        by concatenating and adding special tokens.
+        A Mol sequence has the following format:
+        - single sequence: ``<s> X </s>``
+        Args:
+            token_ids_0 (:obj:`List[int]`):
+                List of IDs to which the special tokens will be added
+            token_ids_1 (:obj:`List[int]`, `optional`, defaults to :obj:`None`):
+                Optional second list of IDs for sequence pairs.
+        Returns:
+            :obj:`List[int]`: list of `input IDs <../glossary.html#input-ids>`__ with the appropriate special tokens.
+        """
+        if token_ids_1 is None:
+            return token_ids_0
+        return token_ids_0 + token_ids_1

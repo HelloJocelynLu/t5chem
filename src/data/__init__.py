@@ -1,2 +1,3 @@
 from .data_utils import LineByLineTextDataset, MolTranslationDataset, MolTokenizer,\
-    data_collator, YieldDatasetFromList, T5MolTokenizer, TaskPrefixDataset
+    data_collator, YieldDatasetFromList, T5MolTokenizer, SelfiesTokenizer, \
+    T5SelfiesTokenizer, TaskPrefixDataset
