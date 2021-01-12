@@ -36,6 +36,11 @@ def add_args(parser):
         help="Prefix of current task. ('Product:', 'Yield:', 'Fill-Mask:')",
     )
     parser.add_argument(
+        "--tokenizer",
+        default='smiles',
+        help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
+    )
+    parser.add_argument(
         "--max_source_length",
         default=300,
         type=int,
@@ -80,7 +85,12 @@ def main():
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    tokenizer = T5MolTokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
+    if args.tokenizer == "smiles":
+        Tokenizer = T5MolTokenizer
+    else:
+        Tokenizer = T5SelfiesTokenizer
+
+    tokenizer = Tokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
 
     if os.path.isfile(args.data_dir):
         args.data_dir, base = os.path.split(args.data_dir)

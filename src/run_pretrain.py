@@ -41,6 +41,11 @@ def add_args(parser):
         help="The path to pretrained vocabulary.",
     )
     parser.add_argument(
+        "--tokenizer",
+        default='smiles',
+        help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
+    )
+    parser.add_argument(
         "--max_length",
         default=150,
         type=int,
@@ -95,11 +100,17 @@ def main():
     add_args(parser)
     args = parser.parse_args()
 
-    if args.vocab:
-        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
+    if args.tokenizer == "smiles":
+        Tokenizer = T5MolTokenizer
     else:
-        files = [os.path.join(args.data_dir,x+'.txt') for x in ['train', 'val']]
-        tokenizer = T5MolTokenizer(source_files=files)
+        Tokenizer = T5SelfiesTokenizer
+
+    tokenizer = Tokenizer(vocab_file=args.vocab)
+#    if args.vocab:
+#        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
+#    else:
+#        files = [os.path.join(args.data_dir,x+'.txt') for x in ['train', 'val']]
+#        tokenizer = T5MolTokenizer(source_files=files)
 
     dataset = LineByLineTextDataset(tokenizer=tokenizer, 
                                   file_path=os.path.join(args.data_dir,'train.txt'),

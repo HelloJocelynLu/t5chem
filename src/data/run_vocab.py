@@ -21,6 +21,7 @@ def add_args(parser):
         default='smiles',
         help="Tokenizer to use. Default: (smiles: MolTokenizer), other options: 'selfies'",
     )
+
 def main():
     parser = argparse.ArgumentParser(description='Generate vocab file (as torchtext.Vocab) based on given data.')
     add_args(parser)

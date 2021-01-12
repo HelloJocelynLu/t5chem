@@ -9,7 +9,7 @@ import numpy as np
 from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
 
-from data import T5MolTokenizer, TaskPrefixDataset, data_collator
+from data import T5MolTokenizer, T5SelfiesTokenizer, TaskPrefixDataset, data_collator
 from models import EarlyStopTrainer
 
 def add_args(parser):
@@ -48,6 +48,11 @@ def add_args(parser):
         "--task_prefix",
         default='Product:',
         help="Prefix of current task. ('Product:', 'Yield:', 'Fill-Mask:')",
+    )
+    parser.add_argument(
+        "--tokenizer",
+        default='smiles',
+        help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
     )
     parser.add_argument(
         "--max_source_length",
@@ -149,11 +154,12 @@ def main():
     # unless you tell it to be deterministic
     torch.backends.cudnn.deterministic = True
 
-    if args.vocab:
-        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
+    if args.tokenizer == "smiles":
+        Tokenizer = T5MolTokenizer
     else:
-        tokenizer = T5MolTokenizer(source_files=[os.path.join(args.data_dir, x) for
-                                 x in ('train.target', 'train.source')])
+        Tokenizer = T5SelfiesTokenizer
+
+    tokenizer = Tokenizer(args.vocab)
     os.makedirs(args.output_dir, exist_ok=True)
     tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
 

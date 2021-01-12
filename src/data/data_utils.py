@@ -7,12 +7,12 @@ from typing import List, Optional
 import torch
 import torchtext
 import pandas as pd
-import selfies as sf
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
+from .selfies import encoder, split_selfies, decoder
 
 class LineByLineTextDataset(Dataset):
     def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int):
@@ -464,12 +464,17 @@ class SelfiesTokenizer(PreTrainedTokenizer):
     def get_vocab(self):
         return self.vocab
 
-    def _tokenize(self, text):
+    def _tokenize(self, texts):
         """
         Tokenize a SMILES molecule or reaction
         """
-        regex = sf.encoder(text)
-        tokens = list(sf.split_selfies(encoded_selfies))
+        texts = texts.split('>')
+        tokens = []
+        for text in texts:
+            encoded_selfies = encoder(text, print_error=True)
+            tokens += ['>'] if tokens else []
+            if not encoded_selfies: continue
+            tokens += list(split_selfies(encoded_selfies))
         return tokens
 
     def _convert_token_to_id(self, token):
@@ -486,8 +491,13 @@ class SelfiesTokenizer(PreTrainedTokenizer):
 
     def convert_tokens_to_string(self, tokens):
         """ Converts a sequence of tokens (string) in a single string. """
-        out_selfies = "".join(tokens).strip()
-        out_string = sf.decoder(out_selfies)
+        out_string = ''
+        for k,v in groupby(tokens, lambda x: x=='>'):
+            if k:
+                out_string += '>'
+                continue
+            out_selfies = "".join(v).strip()
+            out_string += decoder(out_selfies)
         return out_string
 
     def build_inputs_with_special_tokens(
