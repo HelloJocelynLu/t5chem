@@ -55,6 +55,7 @@ def main():
     dir_name = os.path.dirname(args.data_file)
     target_dir = dir_name+'_X'+str(args.multiple)
     os.makedirs(target_dir, exist_ok=True)
+    index = open(os.path.join(target_dir,'index.txt'), 'w')
     error = open(os.path.join(target_dir,'error.txt'), 'w')
     tokenizer = MolTokenizer()
     if args.type == "rxn":
@@ -71,6 +72,7 @@ def main():
             for rxn in random_rxns:
                 try:
                     _ = tokenizer.tokenize(rxn)
+                    print(i, file=index)
                     print(rxn, file=source)
                     print(target_file[0][i], file=target)
                 except:
@@ -90,10 +92,12 @@ def main():
                     try:
                         _ = tokenizer.tokenize(mol)
                         print(mol, file=source)
+                        print(i, file=index)
                     except:
                         print(mol, file=error)
         source.close()
     error.close()
+    index.close()
 
 def gen_randomSmiles(smi):
     return Chem.MolToSmiles(Chem.MolFromSmiles(smi), doRandom=True)

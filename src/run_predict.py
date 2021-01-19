@@ -41,6 +41,12 @@ def add_args(parser):
         help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
     )
     parser.add_argument(
+        "--vocab_size",
+        default=2400,
+        type=int,
+        help="The max_size of vocabulary.",
+    )
+    parser.add_argument(
         "--max_source_length",
         default=300,
         type=int,
@@ -90,7 +96,7 @@ def main():
     else:
         Tokenizer = T5SelfiesTokenizer
 
-    tokenizer = Tokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'))
+    tokenizer = Tokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.pt'), max_size=args.vocab_size)
 
     if os.path.isfile(args.data_dir):
         args.data_dir, base = os.path.split(args.data_dir)
@@ -144,7 +150,6 @@ def main():
         for i,pred in enumerate(outputs):
             prod = tokenizer.decode(pred, skip_special_tokens=True,
                 clean_up_tokenization_spaces=False)
-
             predictions[i % args.num_preds].append(prod)
 
     for i, preds in enumerate(predictions):

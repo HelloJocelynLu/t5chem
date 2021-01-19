@@ -55,6 +55,12 @@ def add_args(parser):
         help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
     )
     parser.add_argument(
+        "--vocab_size",
+        default=2400,
+        type=int,
+        help="The max_size of vocabulary.",
+    )
+    parser.add_argument(
         "--max_source_length",
         default=300,
         type=int,
@@ -121,6 +127,16 @@ def add_args(parser):
     )
 
 
+def AccuracyMetrics(PredictionOutput, tokenizer):
+    predictions = PredictionOutput.predictions[0]
+    predictions = predictions.argmax(-1)
+    label_ids = np.where(PredictionOutput.label_ids==-100, \
+                         tokenizer.pad_token_id, PredictionOutput.label_ids)
+    pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+    label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+    correct = np.sum([a==b for a, b in zip(label_str,pred_str)])
+    return {'accuracy': correct/len(label_str)}
+
 def CalMSELoss(PredictionOutput, tokenizer):
     predictions = PredictionOutput.predictions
     predictions = torch.argmax(torch.Tensor(predictions[0]), -1)
@@ -128,7 +144,7 @@ def CalMSELoss(PredictionOutput, tokenizer):
     preds, labels = [], []
     for pred, label in zip(predictions, label_ids):
         try:
-            num_pred = float(tokenizer.decode(pred, skip_special_tokens=True, 
+            num_pred = float(tokenizer.decode(pred, skip_special_tokens=True,
                 clean_up_tokenization_spaces=False))
         except ValueError:
             num_pred = 0
@@ -144,13 +160,13 @@ def main():
     add_args(parser)
     args = parser.parse_args()
 
-    torch.cuda.manual_seed(8570) 
+    torch.cuda.manual_seed(8570)
     np.random.seed(8570)
-    torch.manual_seed(8570) 
-    # this one is needed for torchtext random call (shuffled iterator) 
-    # in multi gpu it ensures datasets are read in the same order 
-    random.seed(8570) 
-    # some cudnn methods can be random even after fixing the seed 
+    torch.manual_seed(8570)
+    # this one is needed for torchtext random call (shuffled iterator)
+    # in multi gpu it ensures datasets are read in the same order
+    random.seed(8570)
+    # some cudnn methods can be random even after fixing the seed
     # unless you tell it to be deterministic
     torch.backends.cudnn.deterministic = True
 
@@ -159,7 +175,7 @@ def main():
     else:
         Tokenizer = T5SelfiesTokenizer
 
-    tokenizer = Tokenizer(args.vocab)
+    tokenizer = Tokenizer(args.vocab, max_size=args.vocab_size)
     os.makedirs(args.output_dir, exist_ok=True)
     tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
 
@@ -203,7 +219,7 @@ def main():
     if args.task_prefix == 'Yield:':
         compute_metrics = partial(CalMSELoss, tokenizer=tokenizer)
     else:
-        compute_metrics = None
+        compute_metrics = partial(AccuracyMetrics, tokenizer=tokenizer)
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -229,7 +245,7 @@ def main():
         compute_metrics = compute_metrics,
         optimizers = (None, args.lr_scheduler)
     )
-    
+
     if not args.continued:
         trainer.train()
     else:

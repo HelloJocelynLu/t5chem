@@ -2,6 +2,7 @@ import linecache
 import os
 import subprocess
 from collections import Counter
+from itertools import groupby
 from typing import List, Optional
 
 import torch
@@ -12,15 +13,16 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
-from .selfies import encoder, split_selfies, decoder
+from .selfies import split_selfies
 
 class LineByLineTextDataset(Dataset):
-    def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int):
+    def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, prefix=''):
         assert os.path.isfile(file_path), f"Input file path {file_path} not found"
         # Here, we do not cache the features, operating under the assumption
         # that we will soon use fast multithreaded tokenizers from the
         # `tokenizers` repo everywhere =)
         
+        self.prefix = prefix
         self._file_path = file_path
         self._len = int(subprocess.check_output("wc -l " + file_path, shell=True).split()[0])
         self.tokenizer = tokenizer
@@ -29,7 +31,7 @@ class LineByLineTextDataset(Dataset):
     def __getitem__(self, idx):
         line = linecache.getline(self._file_path, idx + 1).strip()
         sample = self.tokenizer(
-                        line,
+                        self.prefix+line,
                         max_length=self.max_length,
                         padding="do_not_pad",
                         truncation=True,
@@ -464,18 +466,17 @@ class SelfiesTokenizer(PreTrainedTokenizer):
     def get_vocab(self):
         return self.vocab
 
-    def _tokenize(self, texts):
+    def _tokenize(self, text):
         """
         Tokenize a SMILES molecule or reaction
         """
-        texts = texts.split('>')
-        tokens = []
-        for text in texts:
-            encoded_selfies = encoder(text, print_error=True)
-            tokens += ['>'] if tokens else []
-            if not encoded_selfies: continue
-            tokens += list(split_selfies(encoded_selfies))
-        return tokens
+
+#        encoded_selfies = encoder(text, print_error=True)
+#        if encoded_selfies:
+#            tokens = list(split_selfies(encoded_selfies))
+#        else:i
+#            tokens = ['[nop]']
+        return list(split_selfies(text))
 
     def _convert_token_to_id(self, token):
         """ Converts a token (str) in an id using the vocab. """
@@ -491,14 +492,14 @@ class SelfiesTokenizer(PreTrainedTokenizer):
 
     def convert_tokens_to_string(self, tokens):
         """ Converts a sequence of tokens (string) in a single string. """
-        out_string = ''
-        for k,v in groupby(tokens, lambda x: x=='>'):
-            if k:
-                out_string += '>'
-                continue
-            out_selfies = "".join(v).strip()
-            out_string += decoder(out_selfies)
-        return out_string
+#        out_string = ''.join(tokens).strip()
+#        if not '>' in out_string:
+#            return decoder(out_string)
+#        else:
+#            part_string = []
+#            for x in out_string.split('>'):
+#                part_string.append(decoder(x))
+        return ''.join(tokens)
 
     def build_inputs_with_special_tokens(
         self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
@@ -530,7 +531,7 @@ class SelfiesTokenizer(PreTrainedTokenizer):
         torch.save(self.vocab, vocab_path)
 
 class T5MolTokenizer(MolTokenizer):
-    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:'], max_size=2400, **kwargs):
+    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>'], max_size=2400, **kwargs):
         super().__init__(
                 unk_token='<unk>',
                 bos_token='<s>',
@@ -539,6 +540,7 @@ class T5MolTokenizer(MolTokenizer):
                 mask_token='<mask>',
                 **kwargs)
         raw_vocab = torch.load(vocab_file)
+        max_size = min(max_size, len(raw_vocab)+100-len(task_prefixs))
         self.vocab = torchtext.vocab.Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
                            max_size=max_size-len(task_prefixs))
         extra_to_add = max_size - len(self.vocab)
@@ -593,7 +595,7 @@ def data_collator(batch, pad_token_id):
             'labels': y}
 
 class T5SelfiesTokenizer(SelfiesTokenizer):
-    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:'], max_size=2400, **kwargs):
+    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>'], max_size=2400, **kwargs):
         super().__init__(
                 unk_token='<unk>',
                 bos_token='<s>',
@@ -602,6 +604,7 @@ class T5SelfiesTokenizer(SelfiesTokenizer):
                 mask_token='<mask>',
                 **kwargs)
         raw_vocab = torch.load(vocab_file)
+        max_size = min(max_size, len(raw_vocab)+100-len(task_prefixs))
         self.vocab = torchtext.vocab.Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
                            max_size=max_size-len(task_prefixs))
         extra_to_add = max_size - len(self.vocab)

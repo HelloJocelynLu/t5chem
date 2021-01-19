@@ -1,9 +1,10 @@
 import os
 import argparse
 import torch
-from data import T5MolTokenizer, LineByLineTextDataset
+from data import T5MolTokenizer, T5SelfiesTokenizer, LineByLineTextDataset
 from transformers import T5Config, T5ForConditionalGeneration, Trainer, TrainingArguments,\
     DataCollatorForLanguageModeling
+from models import EarlyStopTrainer
 
 
 def add_args(parser):
@@ -39,6 +40,12 @@ def add_args(parser):
         default=None,
         type=str,
         help="The path to pretrained vocabulary.",
+    )
+    parser.add_argument(
+        "--vocab_size",
+        default=2400,
+        type=int,
+        help="The max_size of vocabulary.",
     )
     parser.add_argument(
         "--tokenizer",
@@ -105,7 +112,7 @@ def main():
     else:
         Tokenizer = T5SelfiesTokenizer
 
-    tokenizer = Tokenizer(vocab_file=args.vocab)
+    tokenizer = Tokenizer(vocab_file=args.vocab, max_size=args.vocab_size)
 #    if args.vocab:
 #        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
 #    else:
@@ -115,10 +122,12 @@ def main():
     dataset = LineByLineTextDataset(tokenizer=tokenizer, 
                                   file_path=os.path.join(args.data_dir,'train.txt'),
                                   block_size=args.max_length,
+                                  prefix='Fill-Mask:',
                                   )
     eval_iter = LineByLineTextDataset(tokenizer=tokenizer, 
                                     file_path=os.path.join(args.data_dir,'val.txt'),
                                     block_size=args.max_length,
+                                    prefix='Fill-Mask:',
                                     )
 
     config = T5Config(
@@ -151,13 +160,14 @@ def main():
         num_train_epochs=args.num_epoch,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
+        logging_steps=2000,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
         learning_rate=args.learning_rate,
         prediction_loss_only=True,
     )
 
-    trainer = Trainer(
+    trainer = EarlyStopTrainer(
         model=model,
         args=training_args,
         data_collator=data_collator,

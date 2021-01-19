@@ -33,16 +33,17 @@ def main():
         scores = {}
         for i in range(1, num_preds+1):
             for pred in df['prediction_{}'.format(i)]:
-                pred = standize(pred)
-                scores[pred] = scores.get(pred, 0) + 1/(1+0.001*(i-1))
+                if isinstance(pred, str):
+                    pred = standize(pred)
+                    scores[pred] = scores.get(pred, 0) + 1/(1+0.001*(i-1))
         if '' in scores: del scores['']
         return pd.Series(sorted(scores, key=scores.get, reverse=True)[:args.topk])
     
     predictions['target'] = predictions['target'].apply(standize)
     group = predictions.groupby(by='target')
-    score_rank = group.apply(gather_topk).unstack()
+    score_rank = group.apply(gather_topk)
     score_rank.reset_index(level=0, inplace=True)
-    score.columns = ['target']+['prediction_{}'.format(i) for i in range(1, num_preds+1)]
+    score_rank.columns = ['target']+['prediction_{}'.format(i) for i in range(1, num_preds+1)]
     score_rank['rank'] = score_rank.apply(lambda row: get_rank(row, 'prediction_', num_preds), axis=1)
 
     correct = 0
