@@ -10,7 +10,7 @@ from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
 
 from data import T5MolTokenizer, T5SelfiesTokenizer, TaskPrefixDataset, data_collator
-from models import EarlyStopTrainer
+from models import EarlyStopTrainer, EMA
 
 def add_args(parser):
     parser.add_argument(
@@ -107,6 +107,11 @@ def add_args(parser):
         default=5e-5,
         type=float,
         help="The initial learning rate for Adam.",
+    )
+    parser.add_argument(
+        "--EMA",
+        action="store_true",
+        help="Whether to use EMA shadow model.",
     )
     parser.add_argument(
         "--fp16",
@@ -214,6 +219,9 @@ def main():
         if model.config.vocab_size != len(tokenizer):
             model.config = config
             model.resize_token_embeddings(len(tokenizer))
+
+    if args.EMA:
+        model = EMA(model, 0.999)
 
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     if args.task_prefix == 'Yield:':
