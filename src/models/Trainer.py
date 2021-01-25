@@ -5,9 +5,7 @@ from pathlib import Path
 from transformers import Trainer
 from transformers.optimization import get_linear_schedule_with_warmup, \
         get_constant_schedule_with_warmup, get_cosine_schedule_with_warmup
-from transformers.trainer_pt_utils import DistributedTensorGatherer, nested_concat
-from transformers.trainer_utils import EvalPrediction, PredictionOutput
-from .optimizers import EMAAdamW
+from .optimizers import ModelUpdateAdamW
 
 class EarlyStopTrainer(Trainer):
     """
@@ -43,93 +41,6 @@ class EarlyStopTrainer(Trainer):
             self.save_model(output_dir)
         return output.metrics
 
-    def prediction_loop(
-        self,
-        dataloader,
-        description,
-        prediction_loss_only = None,
-        ignore_keys = None,
-    ):
-        """
-        Prediction/evaluation loop, shared by :obj:`Trainer.evaluate()` and :obj:`Trainer.predict()`.
-
-        Works both with or without labels.
-        """
-        prediction_loss_only = (
-            prediction_loss_only if prediction_loss_only is not None else self.args.prediction_loss_only
-        )
-
-        model = self.optimizer.shadow_model
-
-        batch_size = dataloader.batch_size
-        num_examples = self.num_examples(dataloader)
-        losses_host = None
-        preds_host = None
-        labels_host = None
-
-        world_size = 1
-
-        eval_losses_gatherer = DistributedTensorGatherer(world_size, num_examples, make_multiple_of=batch_size)
-        if not prediction_loss_only:
-            preds_gatherer = DistributedTensorGatherer(world_size, num_examples)
-            labels_gatherer = DistributedTensorGatherer(world_size, num_examples)
-
-        model.eval()
-
-        if self.args.past_index >= 0:
-            self._past = None
-
-        self.callback_handler.eval_dataloader = dataloader
-
-        for step, inputs in enumerate(dataloader):
-            loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
-            if loss is not None:
-                losses = loss.repeat(batch_size)
-                losses_host = losses if losses_host is None else torch.cat((losses_host, losses), dim=0)
-            if logits is not None:
-                preds_host = logits if preds_host is None else nested_concat(preds_host, logits, padding_index=-100)
-            if labels is not None:
-                labels_host = labels if labels_host is None else nested_concat(labels_host, labels, padding_index=-100)
-            self.control = self.callback_handler.on_prediction_step(self.args, self.state, self.control)
-
-            # Gather all tensors and put them back on the CPU if we have done enough accumulation steps.
-            if self.args.eval_accumulation_steps is not None and (step + 1) % self.args.eval_accumulation_steps == 0:
-                eval_losses_gatherer.add_arrays(self._gather_and_numpify(losses_host, "eval_losses"))
-                if not prediction_loss_only:
-                    preds_gatherer.add_arrays(self._gather_and_numpify(preds_host, "eval_preds"))
-                    labels_gatherer.add_arrays(self._gather_and_numpify(labels_host, "eval_label_ids"))
-
-                # Set back to None to begin a new accumulation
-                losses_host, preds_host, labels_host = None, None, None
-
-        if self.args.past_index and hasattr(self, "_past"):
-            # Clean the state at the end of the evaluation loop
-            delattr(self, "_past")
-
-        # Gather all remaining tensors and put them back on the CPU
-        eval_losses_gatherer.add_arrays(self._gather_and_numpify(losses_host, "eval_losses"))
-        if not prediction_loss_only:
-            preds_gatherer.add_arrays(self._gather_and_numpify(preds_host, "eval_preds"))
-            labels_gatherer.add_arrays(self._gather_and_numpify(labels_host, "eval_label_ids"))
-
-        eval_loss = eval_losses_gatherer.finalize()
-        preds = preds_gatherer.finalize() if not prediction_loss_only else None
-        label_ids = labels_gatherer.finalize() if not prediction_loss_only else None
-
-        if self.compute_metrics is not None and preds is not None and label_ids is not None:
-            metrics = self.compute_metrics(EvalPrediction(predictions=preds, label_ids=label_ids))
-        else:
-            metrics = {}
-
-        if eval_loss is not None:
-            metrics["eval_loss"] = eval_loss.mean().item()
-
-        # Prefix all keys with eval_
-        for key in list(metrics.keys()):
-            if not key.startswith("eval_"):
-                metrics[f"eval_{key}"] = metrics.pop(key)
-
-        return PredictionOutput(predictions=preds, label_ids=label_ids, metrics=metrics)
 
     def create_optimizer_and_scheduler(self, num_training_steps: int):
         """
@@ -139,19 +50,23 @@ class EarlyStopTrainer(Trainer):
         """
         if self.optimizer is None:
             no_decay = ["bias", "LayerNorm.weight"]
+            if hasattr(self.model, "shadow"):
+                model = self.model.model
+            else:
+                model = self.model
             optimizer_grouped_parameters = [
                 {
-                    "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                    "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
                     "weight_decay": self.args.weight_decay,
                 },
                 {
-                    "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
+                    "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
                     "weight_decay": 0.0,
                 },
             ]
-            self.optimizer = EMAAdamW(
+            self.optimizer = ModelUpdateAdamW(
                 optimizer_grouped_parameters,
-                self.model,
+                model = self.model,
                 lr=self.args.learning_rate,
                 betas=(self.args.adam_beta1, self.args.adam_beta2),
                 eps=self.args.adam_epsilon,
@@ -180,7 +95,10 @@ class EarlyStopTrainer(Trainer):
         os.makedirs(output_dir, exist_ok=True)
         # Save a trained model and configuration using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
-        model = self.optimizer.shadow_model
+        if hasattr(self.model, "shadow"):
+            model = self.model.shadow
+        else:
+            model = self.model
         model.save_pretrained(output_dir)
         if self.tokenizer is not None and self.is_world_process_zero():
             self.tokenizer.save_pretrained(output_dir)

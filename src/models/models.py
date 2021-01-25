@@ -48,8 +48,8 @@ class EMA(nn.Module):
             # buffers are copied
             shadow_buffers[name].copy_(buffer)
 
-    def forward(self, inputs: Tensor, return_feature: bool = False) -> Tensor:
+    def forward(self, **inputs):
         if self.training:
-            return self.model(inputs, return_feature)
+            return self.model(**inputs)
         else:
-            return self.shadow(inputs, return_feature)
+            return self.shadow(**inputs)
