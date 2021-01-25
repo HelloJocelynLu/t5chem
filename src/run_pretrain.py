@@ -1,7 +1,7 @@
 import os
 import argparse
 import torch
-from data import T5MolTokenizer, T5SelfiesTokenizer, LineByLineTextDataset
+from data import T5MolTokenizer, T5SelfiesTokenizer, T5SimpleTokenizer, LineByLineTextDataset
 from transformers import T5Config, T5ForConditionalGeneration, Trainer, TrainingArguments,\
     DataCollatorForLanguageModeling
 from models import EarlyStopTrainer
@@ -50,7 +50,7 @@ def add_args(parser):
     parser.add_argument(
         "--tokenizer",
         default='smiles',
-        help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
+        help="Tokenizer to use. (Default: 'smiles'. 'selfies', 'simple')",
     )
     parser.add_argument(
         "--max_length",
@@ -109,15 +109,12 @@ def main():
 
     if args.tokenizer == "smiles":
         Tokenizer = T5MolTokenizer
+    elif args.tokenizer == 'simple':
+        Tokenizer = T5SimpleTokenizer
     else:
         Tokenizer = T5SelfiesTokenizer
 
     tokenizer = Tokenizer(vocab_file=args.vocab, max_size=args.vocab_size)
-#    if args.vocab:
-#        tokenizer = T5MolTokenizer(vocab_file=args.vocab)
-#    else:
-#        files = [os.path.join(args.data_dir,x+'.txt') for x in ['train', 'val']]
-#        tokenizer = T5MolTokenizer(source_files=files)
 
     dataset = LineByLineTextDataset(tokenizer=tokenizer, 
                                   file_path=os.path.join(args.data_dir,'train.txt'),

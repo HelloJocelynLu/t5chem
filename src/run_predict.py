@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5ForConditionalGeneration
 
-from data import T5MolTokenizer, T5SelfiesTokenizer, TaskPrefixDataset, data_collator
+from data import T5MolTokenizer, T5SelfiesTokenizer, T5SimpleTokenizer, TaskPrefixDataset, data_collator
 
 
 def add_args(parser):
@@ -93,6 +93,8 @@ def main():
 
     if args.tokenizer == "smiles":
         Tokenizer = T5MolTokenizer
+    elif args.tokenizer == 'simple':
+        Tokenizer = T5SimpleTokenizer
     else:
         Tokenizer = T5SelfiesTokenizer
 

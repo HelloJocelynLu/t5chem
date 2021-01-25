@@ -9,7 +9,7 @@ import numpy as np
 from transformers import (T5Config, T5ForConditionalGeneration,
                           TrainingArguments)
 
-from data import T5MolTokenizer, T5SelfiesTokenizer, TaskPrefixDataset, data_collator
+from data import T5MolTokenizer, T5SelfiesTokenizer, T5SimpleTokenizer, TaskPrefixDataset, data_collator
 from models import EarlyStopTrainer, EMA
 
 def add_args(parser):
@@ -177,6 +177,8 @@ def main():
 
     if args.tokenizer == "smiles":
         Tokenizer = T5MolTokenizer
+    elif args.tokenizer == 'simple':
+        Tokenizer = T5SimpleTokenizer
     else:
         Tokenizer = T5SelfiesTokenizer
 
