@@ -114,9 +114,26 @@ def add_args(parser):
         help="Whether to use EMA shadow model.",
     )
     parser.add_argument(
+        "--tie_weights",
+        action="store_false",
+        help="Whether the model's input and output word embeddings should be tied. (default: True) ",
+    )
+    parser.add_argument(
         "--fp16",
         action="store_true",
         help="Whether to use 16-bit (mixed) precision training (through NVIDIA apex) instead of 32-bit training.",
+    )
+    parser.add_argument(
+        "--target_classes",
+        default=1000,
+        type=int,
+        help="Number of target classes if --tie_weights was set to False.",
+    )
+    parser.add_argument(
+        "--log_steps",
+        default=500,
+        type=int,
+        help="Number of update steps between two logs.",
     )
     parser.add_argument(
         "--save_steps",
@@ -143,22 +160,23 @@ def AccuracyMetrics(PredictionOutput, tokenizer):
     return {'accuracy': correct/len(label_str)}
 
 def CalMSELoss(PredictionOutput, tokenizer):
-    predictions = PredictionOutput.predictions
-    predictions = torch.argmax(torch.Tensor(predictions[0]), -1)
-    label_ids = PredictionOutput.label_ids
-    preds, labels = [], []
-    for pred, label in zip(predictions, label_ids):
+    predictions = PredictionOutput.predictions[0]
+    predictions = predictions.argmax(-1)
+    label_ids = np.where(PredictionOutput.label_ids==-100, \
+                         tokenizer.pad_token_id, PredictionOutput.label_ids)
+    pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+    label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+    correct = np.sum([a==b for a, b in zip(label_str,pred_str)])
+    def NumConverter(str_num):
         try:
-            num_pred = float(tokenizer.decode(pred, skip_special_tokens=True,
-                clean_up_tokenization_spaces=False))
-        except ValueError:
-            num_pred = 0
-        preds.append(num_pred)
-        labels.append(float(tokenizer.decode(label, skip_special_tokens=True,
-            clean_up_tokenization_spaces=False)))
+            return float(str_num.strip())
+        except:
+            return 0
+    preds = list(map(NumConverter, pred_str))
+    labels = list(map(NumConverter, label_str))
     loss_fcn = nn.MSELoss()
     loss = loss_fcn(torch.Tensor(preds), torch.Tensor(labels))
-    return {'mse_loss': loss.item()}
+    return {'mse_loss': loss.item(), 'accuracy': correct/len(label_str)}
 
 def main():
     parser = argparse.ArgumentParser()
@@ -190,6 +208,7 @@ def main():
                                     prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
+                                    separate_vocab=not args.tie_weights,
                                     type_path="train")
 
     do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
@@ -213,6 +232,7 @@ def main():
         num_layers=args.num_layers,
         num_heads=args.num_heads,
         d_model=args.d_model,
+        tie_word_embeddings=args.tie_weights,
         )
     if not args.pretrain:
         model = T5ForConditionalGeneration(config)
@@ -221,6 +241,9 @@ def main():
         if model.config.vocab_size != len(tokenizer):
             model.config = config
             model.resize_token_embeddings(len(tokenizer))
+
+    if not args.tie_weights:
+        model.set_output_embeddings = nn.Embedding(args.target_classes, args.d_model)
 
     if args.EMA:
         model = EMA(model, 0.999)
@@ -239,6 +262,7 @@ def main():
         evaluation_strategy=eval_strategy,
         num_train_epochs=args.num_epoch,
         per_device_train_batch_size=args.batch_size,
+        logging_steps=args.log_steps,
         per_device_eval_batch_size=args.batch_size,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,

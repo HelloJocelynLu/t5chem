@@ -1,6 +1,6 @@
 import argparse
 import datetime
-from data_utils import MolTokenizer, SelfiesTokenizer
+from data_utils import MolTokenizer, SelfiesTokenizer, SimpleTokenizer
 
 
 def add_args(parser):
@@ -30,6 +30,9 @@ def main():
     if args.tokenizer == 'smiles':
         tokenizer = MolTokenizer(source_files=args.data_file, mask_token='<mask>',
                                  vocab_size=args.max_size)
+    elif args.tokenizer == 'simple':
+        tokenizer = SimpleTokenizer(source_files=args.data_file, mask_token='<mask>',
+                                    vocab_size=args.max_size)
     else:
         tokenizer = SelfiesTokenizer(source_files=args.data_file, mask_token='<mask>',
                                  vocab_size=args.max_size)      

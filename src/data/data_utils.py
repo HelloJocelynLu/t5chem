@@ -103,6 +103,7 @@ class TaskPrefixDataset(Dataset):
         type_path="train",
         max_source_length=300,
         max_target_length=100,
+        separate_vocab=False,
     ):
         super().__init__()
 
@@ -115,6 +116,7 @@ class TaskPrefixDataset(Dataset):
         self.tokenizer = tokenizer
         self.max_source_len = max_source_length
         self.max_target_len = max_target_length
+        self.sep_vocab = separate_vocab
 
     def __len__(self):
         return self._len_source
@@ -129,15 +131,20 @@ class TaskPrefixDataset(Dataset):
                         return_tensors='pt',
                     )
         target_line = linecache.getline(self._target_path, idx + 1).strip()
-        target_sample = self.tokenizer(
-                        target_line,
-                        max_length=self.max_target_len,
-                        padding="do_not_pad",
-                        truncation=True,
-                        return_tensors='pt',
-                    )
+        if self.sep_vocab:
+            assert str.isdigit(target_line), "The target should be integer \
+                    representing a class, not {}".format(target)
+            target_ids = torch.LongTensor([target_line])
+        else:
+            target_sample = self.tokenizer(
+                            target_line,
+                            max_length=self.max_target_len,
+                            padding="do_not_pad",
+                            truncation=True,
+                            return_tensors='pt',
+                        )
+            target_ids = target_sample["input_ids"].squeeze(0)
         source_ids = source_sample["input_ids"].squeeze(0)
-        target_ids = target_sample["input_ids"].squeeze(0)
         src_mask = source_sample["attention_mask"].squeeze(0)
         return {"input_ids": source_ids, "attention_mask": src_mask,
                 "decoder_input_ids": target_ids}
