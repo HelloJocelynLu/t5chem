@@ -25,6 +25,11 @@ def add_args(parser):
         default='text',
         help="The type of predictions (text/value)",
     )
+    parser.add_argument(
+        "--simple",
+        action="store_true",
+        help="Whether to compare simple string only",
+    )
 
 
 def get_rank(row, base, max_rank):
@@ -41,18 +46,20 @@ def main():
     
     print('evaluating {}'.format(args.prediction))
     predictions = pd.read_csv(args.prediction)
+    predictions.fillna('', inplace=True)
     num_preds = len(predictions.columns)-1
 
     if args.type == 'text':
-        for i in range(1, num_preds+1):
-            predictions['prediction_{}'.format(i)] = predictions['prediction_{}'.format(i)].apply(standize)
+        if not args.simple:
+            for i in range(1, num_preds+1):
+                predictions['prediction_{}'.format(i)] = predictions['prediction_{}'.format(i)].apply(standize)
         predictions['rank'] = predictions.apply(lambda row: get_rank(row, 'prediction_', num_preds), axis=1)
 
         correct = 0
         for i in range(1, num_preds+1):
             correct += (predictions['rank'] == i).sum()
             invalid_smiles = (predictions['prediction_{}'.format(i)] == '').sum()
-            print('Top-{}: {:.1f}% || Invalid SMILES {:.2f}%'.format(i, correct/len(predictions)*100,
+            print('Top-{}: {:.1f}% || Invalid {:.2f}%'.format(i, correct/len(predictions)*100,
                                                                      invalid_smiles/len(predictions)*100))
     
     else:

@@ -15,6 +15,8 @@ from transformers import PreTrainedTokenizer
 
 from .selfies import split_selfies
 
+TASK_PREFIX = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>', 'Classification:']
+
 class LineByLineTextDataset(Dataset):
     def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, prefix=''):
         assert os.path.isfile(file_path), f"Input file path {file_path} not found"
@@ -132,9 +134,14 @@ class TaskPrefixDataset(Dataset):
                     )
         target_line = linecache.getline(self._target_path, idx + 1).strip()
         if self.sep_vocab:
-            assert str.isdigit(target_line), "The target should be integer \
-                    representing a class, not {}".format(target)
-            target_ids = torch.LongTensor([target_line])
+            target_line = target_line[:self.max_target_len]
+            try:
+                target_line = int(target_line)
+                target_ids = torch.LongTensor([target_line])
+            except TypeError:
+                print("The target should be integer representing a class, \
+                        not {}".format(target_line))
+                raise AssertionError
         else:
             target_sample = self.tokenizer(
                             target_line,
@@ -687,7 +694,7 @@ class SimpleTokenizer(PreTrainedTokenizer):
         torch.save(self.vocab, vocab_path)
 
 class T5MolTokenizer(MolTokenizer):
-    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>'], max_size=2400, **kwargs):
+    def __init__(self, vocab_file, task_prefixs=TASK_PREFIX, max_size=2400, **kwargs):
         super().__init__(
                 unk_token='<unk>',
                 bos_token='<s>',
@@ -731,7 +738,7 @@ class T5MolTokenizer(MolTokenizer):
         return token_ids_0 + token_ids_1
 
 class T5SimpleTokenizer(SimpleTokenizer):
-    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>'], max_size=2400, **kwargs):
+    def __init__(self, vocab_file, task_prefixs=TASK_PREFIX, max_size=2400, **kwargs):
         super().__init__(
                 unk_token='<unk>',
                 bos_token='<s>',
@@ -775,7 +782,7 @@ class T5SimpleTokenizer(SimpleTokenizer):
         return token_ids_0 + token_ids_1
 
 class T5SelfiesTokenizer(SelfiesTokenizer):
-    def __init__(self, vocab_file, task_prefixs=['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>'], max_size=2400, **kwargs):
+    def __init__(self, vocab_file, task_prefixs=TASK_PREFIX, max_size=2400, **kwargs):
         super().__init__(
                 unk_token='<unk>',
                 bos_token='<s>',

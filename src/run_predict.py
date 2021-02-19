@@ -4,9 +4,10 @@ from functools import partial
 
 import pandas as pd
 import torch
+import torch.nn as nn
 from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
-from transformers import T5ForConditionalGeneration
+from transformers import T5Config, T5ForConditionalGeneration
 
 from data import T5MolTokenizer, T5SelfiesTokenizer, T5SimpleTokenizer, TaskPrefixDataset, data_collator
 
@@ -71,6 +72,11 @@ def add_args(parser):
         help="The number of independently computed returned sequences for each element in the batch.",
     )
     parser.add_argument(
+        "--tie_weights",
+        action="store_false",
+        help="Whether the model's input and output word embeddings should be tied. (default: True) ",
+    )
+    parser.add_argument(
         "--rep_penalty",
         default=1.0,
         type=float,
@@ -110,6 +116,7 @@ def main():
                                     prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
+                                    separate_vocab=not args.tie_weights,
                                     type_path=base)
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     test_loader = DataLoader(testset, batch_size=args.batch_size,
@@ -125,14 +132,23 @@ def main():
           "repetition_penalty": args.rep_penalty,
         }
     }
-
-    model = T5ForConditionalGeneration.from_pretrained(args.model_dir).to(device)
+    if args.tie_weights:
+        model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
+    else:
+        config = T5Config.from_pretrained(args.model_dir)
+        model = T5ForConditionalGeneration(config)
+        archive_file = os.path.join(args.model_dir, "pytorch_model.bin")
+        model.set_output_embeddings(nn.Linear(config.d_model, config.num_classes, bias=False))
+        model.load_state_dict(torch.load(archive_file, map_location="cpu"))
     model.eval()
 
     targets = []
     with open(os.path.join(args.data_dir, base+".target")) as rf:
         for line in rf:
-            targets.append(line.strip()[:args.max_target_length])
+            if hasattr(model.config, "num_classes"):
+                targets.append(line.strip())
+            else:
+                targets.append(line.strip()[:args.max_target_length])
 
     test_df = pd.DataFrame(targets)
     test_df.columns = ['target']
@@ -141,6 +157,7 @@ def main():
     if not args.prediction:
         args.prediction = os.path.join(args.model_dir, 'predictions.csv')
     
+    model = model.to(device)
     for batch in tqdm(test_loader, desc="prediction"):
 
         for k, v in batch.items():
@@ -150,8 +167,12 @@ def main():
         with torch.no_grad():
             outputs = model.generate(**batch, **task_specific_params['Reaction'])
         for i,pred in enumerate(outputs):
-            prod = tokenizer.decode(pred, skip_special_tokens=True,
-                clean_up_tokenization_spaces=False)
+            if hasattr(model.config, "num_classes"):
+                assert len(pred) <= 2
+                prod = pred[-1].item()
+            else:
+                prod = tokenizer.decode(pred, skip_special_tokens=True,
+                    clean_up_tokenization_spaces=False)
             predictions[i % args.num_preds].append(prod)
 
     for i, preds in enumerate(predictions):

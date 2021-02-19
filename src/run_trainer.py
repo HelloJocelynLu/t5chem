@@ -150,8 +150,8 @@ def add_args(parser):
 
 
 def AccuracyMetrics(PredictionOutput, tokenizer):
-    predictions = PredictionOutput.predictions[0]
-    predictions = predictions.argmax(-1)
+    predictions = np.where(PredictionOutput.predictions==-100, \
+                           tokenizer.pad_token_id, PredictionOutput.predictions)
     label_ids = np.where(PredictionOutput.label_ids==-100, \
                          tokenizer.pad_token_id, PredictionOutput.label_ids)
     pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
@@ -160,8 +160,10 @@ def AccuracyMetrics(PredictionOutput, tokenizer):
     return {'accuracy': correct/len(label_str)}
 
 def CalMSELoss(PredictionOutput, tokenizer):
-    predictions = PredictionOutput.predictions[0]
-    predictions = predictions.argmax(-1)
+    predictions = np.where(PredictionOutput.predictions==-100, \
+                           tokenizer.pad_token_id, PredictionOutput.predictions)
+#    predictions = PredictionOutput.predictions[0]
+#    predictions = predictions.argmax(-1)
     label_ids = np.where(PredictionOutput.label_ids==-100, \
                          tokenizer.pad_token_id, PredictionOutput.label_ids)
     pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
@@ -218,6 +220,7 @@ def main():
                                       prefix=args.task_prefix,
                                       max_source_length=args.max_source_length,
                                       max_target_length=args.max_target_length,
+                                      separate_vocab=not args.tie_weights,
                                       type_path="val")
     else:
         eval_strategy = "no"
@@ -242,8 +245,9 @@ def main():
             model.config = config
             model.resize_token_embeddings(len(tokenizer))
 
+    model.config.tie_word_embeddings=args.tie_weights
     if not args.tie_weights:
-        model.set_output_embeddings = nn.Embedding(args.target_classes, args.d_model)
+        model.set_output_embeddings(nn.Linear(args.d_model, args.target_classes, bias=False))
 
     if args.EMA:
         model = EMA(model, 0.999)
@@ -251,6 +255,8 @@ def main():
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     if args.task_prefix == 'Yield:':
         compute_metrics = partial(CalMSELoss, tokenizer=tokenizer)
+    elif args.task_prefix == 'Classification:':
+        compute_metrics = None
     else:
         compute_metrics = partial(AccuracyMetrics, tokenizer=tokenizer)
 

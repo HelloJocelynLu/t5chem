@@ -8,11 +8,10 @@
 
 module purge
 script=$1
-overlay_ext3=/home/jl8570/overlay-25GB-500K.ext3
+overlay_ext3=/home/jl8570/torch-env.ext3
 if [[ $(hostname -s) =~ ^g ]]; then nv="--nv"; fi
 singularity \
     exec $nv --overlay $overlay_ext3:ro \
     /scratch/work/public/singularity/cuda11.0-cudnn8-devel-ubuntu18.04.sif  \
     /bin/bash -c "source /ext3/env.sh; \
-        conda activate torch-env; \
         bash $script"
