@@ -52,7 +52,7 @@ def main():
 #        all_data = pd.read_csv(args.data_file, header=None, engine='python')
         all_data = open(args.data_file).readlines()
 
-    dir_name = os.path.dirname(args.data_file)
+    dir_name, file_name = os.path.split(args.data_file)
     target_dir = dir_name+'_X'+str(args.multiple)
     os.makedirs(target_dir, exist_ok=True)
     index = open(os.path.join(target_dir,'index.txt'), 'w')
@@ -80,7 +80,7 @@ def main():
         source.close()
         target.close()
     else:
-        source = open(os.path.join(target_dir, 'train.txt'), 'w')
+        source = open(os.path.join(target_dir, file_name), 'w')
         for i, mol in enumerate(tqdm(all_data, desc=args.data_file)):
             mol = mol.strip()
             random_mols = {mol}

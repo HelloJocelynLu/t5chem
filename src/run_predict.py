@@ -72,8 +72,8 @@ def add_args(parser):
         help="The number of independently computed returned sequences for each element in the batch.",
     )
     parser.add_argument(
-        "--tie_weights",
-        action="store_false",
+        "--new_lm_head",
+        action="store_true",
         help="Whether the model's input and output word embeddings should be tied. (default: True) ",
     )
     parser.add_argument(
@@ -116,7 +116,7 @@ def main():
                                     prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
-                                    separate_vocab=not args.tie_weights,
+                                    separate_vocab=args.new_lm_head,
                                     type_path=base)
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     test_loader = DataLoader(testset, batch_size=args.batch_size,
@@ -132,13 +132,14 @@ def main():
           "repetition_penalty": args.rep_penalty,
         }
     }
-    if args.tie_weights:
+    if not args.new_lm_head:
         model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
     else:
         config = T5Config.from_pretrained(args.model_dir)
         model = T5ForConditionalGeneration(config)
         archive_file = os.path.join(args.model_dir, "pytorch_model.bin")
         model.set_output_embeddings(nn.Linear(config.d_model, config.num_classes, bias=False))
+        task_specific_params['Reaction']['max_length'] = 2
         model.load_state_dict(torch.load(archive_file, map_location="cpu"))
     model.eval()
 

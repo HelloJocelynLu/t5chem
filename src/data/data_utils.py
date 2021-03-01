@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
-from .selfies import split_selfies
+#from .selfies import split_selfies
 
 TASK_PREFIX = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>', 'Classification:']
 

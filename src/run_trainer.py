@@ -114,8 +114,8 @@ def add_args(parser):
         help="Whether to use EMA shadow model.",
     )
     parser.add_argument(
-        "--tie_weights",
-        action="store_false",
+        "--new_lm_head",
+        action="store_true",
         help="Whether the model's input and output word embeddings should be tied. (default: True) ",
     )
     parser.add_argument(
@@ -127,7 +127,7 @@ def add_args(parser):
         "--target_classes",
         default=1000,
         type=int,
-        help="Number of target classes if --tie_weights was set to False.",
+        help="Number of target classes if --new_lm_head was set to False.",
     )
     parser.add_argument(
         "--log_steps",
@@ -210,7 +210,7 @@ def main():
                                     prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
-                                    separate_vocab=not args.tie_weights,
+                                    separate_vocab=args.new_lm_head,
                                     type_path="train")
 
     do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
@@ -220,7 +220,7 @@ def main():
                                       prefix=args.task_prefix,
                                       max_source_length=args.max_source_length,
                                       max_target_length=args.max_target_length,
-                                      separate_vocab=not args.tie_weights,
+                                      separate_vocab=args.new_lm_head,
                                       type_path="val")
     else:
         eval_strategy = "no"
@@ -235,7 +235,7 @@ def main():
         num_layers=args.num_layers,
         num_heads=args.num_heads,
         d_model=args.d_model,
-        tie_word_embeddings=args.tie_weights,
+        tie_word_embeddings=not args.new_lm_head,
         )
     if not args.pretrain:
         model = T5ForConditionalGeneration(config)
@@ -245,9 +245,10 @@ def main():
             model.config = config
             model.resize_token_embeddings(len(tokenizer))
 
-    model.config.tie_word_embeddings=args.tie_weights
-    if not args.tie_weights:
+    model.config.tie_word_embeddings=not args.new_lm_head
+    if args.new_lm_head:
         model.set_output_embeddings(nn.Linear(args.d_model, args.target_classes, bias=False))
+        model.config.num_classes = args.target_classes
 
     if args.EMA:
         model = EMA(model, 0.999)
