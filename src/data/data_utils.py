@@ -134,7 +134,7 @@ class TaskPrefixDataset(Dataset):
                     )
         target_line = linecache.getline(self._target_path, idx + 1).strip()
         if self.sep_vocab:
-            target_line = target_line[:self.max_target_len]
+            # target_line = target_line[:self.max_target_len]
             try:
                 target_line = int(target_line)
                 target_ids = torch.LongTensor([target_line])
