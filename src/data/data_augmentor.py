@@ -8,7 +8,7 @@ import pandas as pd
 from rdkit import Chem
 from tqdm import tqdm
 
-from data_utils import MolTokenizer
+#from data_utils import MolTokenizer
 
 
 def add_args(parser):

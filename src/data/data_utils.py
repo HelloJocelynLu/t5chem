@@ -15,7 +15,7 @@ from transformers import PreTrainedTokenizer
 
 #from .selfies import split_selfies
 
-TASK_PREFIX = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', '>', 'Classification:']
+TASK_PREFIX = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', 'Classification:']
 
 class LineByLineTextDataset(Dataset):
     def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, prefix=''):
@@ -136,10 +136,10 @@ class TaskPrefixDataset(Dataset):
         if self.sep_vocab:
             # target_line = target_line[:self.max_target_len]
             try:
-                target_line = int(target_line)
-                target_ids = torch.LongTensor([target_line])
+                target_line = float(target_line)
+                target_ids = torch.Tensor([target_line])
             except TypeError:
-                print("The target should be integer representing a class, \
+                print("The target should be a number, \
                         not {}".format(target_line))
                 raise AssertionError
         else:
@@ -790,7 +790,7 @@ class T5SelfiesTokenizer(SelfiesTokenizer):
                 eos_token='</s>',
                 mask_token='<mask>',
                 **kwargs)
-        raw_vocab = torch.load(vocab_file)
+        raw_vocab = torch.load(vocab_file) 
         max_size = min(max_size, len(raw_vocab)+100-len(task_prefixs))
         self.vocab = torchtext.vocab.Vocab(raw_vocab.freqs, specials=['<s>', '</s>', '<unk>', '<pad>', '<mask>'],
                            max_size=max_size-len(task_prefixs))

@@ -114,20 +114,9 @@ def add_args(parser):
         help="Whether to use EMA shadow model.",
     )
     parser.add_argument(
-        "--new_lm_head",
-        action="store_true",
-        help="Whether the model's input and output word embeddings should be tied. (default: True) ",
-    )
-    parser.add_argument(
         "--fp16",
         action="store_true",
         help="Whether to use 16-bit (mixed) precision training (through NVIDIA apex) instead of 32-bit training.",
-    )
-    parser.add_argument(
-        "--target_classes",
-        default=1000,
-        type=int,
-        help="Number of target classes if --new_lm_head was set to False.",
     )
     parser.add_argument(
         "--log_steps",
@@ -210,7 +199,6 @@ def main():
                                     prefix=args.task_prefix,
                                     max_source_length=args.max_source_length,
                                     max_target_length=args.max_target_length,
-                                    separate_vocab=args.new_lm_head,
                                     type_path="train")
 
     do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
@@ -220,7 +208,6 @@ def main():
                                       prefix=args.task_prefix,
                                       max_source_length=args.max_source_length,
                                       max_target_length=args.max_target_length,
-                                      separate_vocab=args.new_lm_head,
                                       type_path="val")
     else:
         eval_strategy = "no"
@@ -235,20 +222,15 @@ def main():
         num_layers=args.num_layers,
         num_heads=args.num_heads,
         d_model=args.d_model,
-        tie_word_embeddings=not args.new_lm_head,
         )
     if not args.pretrain:
         model = T5ForConditionalGeneration(config)
     else:
         model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
         if model.config.vocab_size != len(tokenizer):
-            model.config = config
             model.resize_token_embeddings(len(tokenizer))
-
-    model.config.tie_word_embeddings=not args.new_lm_head
-    if args.new_lm_head:
-        model.set_output_embeddings(nn.Linear(args.d_model, args.target_classes, bias=False))
-        model.config.num_classes = args.target_classes
+        model.config = config
+        model.tie_weights()
 
     if args.EMA:
         model = EMA(model, 0.999)
@@ -256,8 +238,6 @@ def main():
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     if args.task_prefix == 'Yield:':
         compute_metrics = partial(CalMSELoss, tokenizer=tokenizer)
-    elif args.task_prefix == 'Classification:':
-        compute_metrics = None
     else:
         compute_metrics = partial(AccuracyMetrics, tokenizer=tokenizer)
 
@@ -290,7 +270,7 @@ def main():
     if not args.continued:
         trainer.train()
     else:
-        trainer.train(model_path=args.pretrain)
+        trainer.train(resume_from_checkpoint=args.pretrain)
     print(args)
     print("logging dir: {}".format(training_args.logging_dir))
     trainer.save_model(args.output_dir)

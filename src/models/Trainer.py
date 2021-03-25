@@ -19,20 +19,32 @@ class EarlyStopTrainer(Trainer):
     """
     Save model weights based on validation error.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, train_eval_dataset=None, **kwargs):
         super().__init__(**kwargs)
-
+        self.train_eval_dataset = train_eval_dataset
         self.min_eval_loss = float('inf')
 
     def evaluate(self, eval_dataset=None, ignore_keys=None):
         eval_dataloader = self.get_eval_dataloader(eval_dataset)
+        if self.train_eval_dataset:
+            train_eval_dataloader = self.get_eval_dataloader(self.train_eval_dataset)
+            output_ = self.prediction_loop(
+                train_eval_dataloader,
+                description="Evaluation",
+                # No point gathering the predictions if there are no metrics, otherwise we defer to
+                # self.args.prediction_loss_only
+                prediction_loss_only=True if self.compute_metrics is None else None,
+                ignore_keys=ignore_keys,
+                metric_key_prefix="train_eval",
+            )
+            self.log(output_.metrics)
         output = self.prediction_loop(
             eval_dataloader,
             description="Evaluation",
             # No point gathering the predictions if there are no metrics, otherwise we defer to
             # self.args.prediction_loss_only
             prediction_loss_only=True if self.compute_metrics is None else None,
-            ignore_keys=ignore_keys,
+            ignore_keys=ignore_keys
         )
         self.log(output.metrics)
         if 'eval_mse_loss' in output.metrics:
@@ -95,7 +107,7 @@ class EarlyStopTrainer(Trainer):
             if logits is not None:
                 # preds_host = logits if preds_host is None else nested_concat(preds_host, logits, padding_index=-100)
                 logits = logits[0]
-                logits_reduced = torch.argmax(logits, axis=-1) if logits.size()[-1]>1 else logits
+                logits_reduced = torch.argmax(logits, axis=-1) if len(logits.size())>1 else logits
                 preds_host = logits_reduced if preds_host is None else nested_concat(preds_host, logits_reduced, padding_index=-100)
             if labels is not None:
                 labels_host = labels if labels_host is None else nested_concat(labels_host, labels, padding_index=-100)

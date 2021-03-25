@@ -59,13 +59,46 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
     _keys_to_ignore_on_load_missing = [
         r"encoder\.embed_tokens\.weight",
         r"decoder\.embed_tokens\.weight"
-        r"lm_head\.weight",
+        r"lm_head\.0\.weight",
+        r"lm_head\.0\.bias",
     ]
     _keys_to_ignore_on_load_unexpected = [
         r"decoder\.block\.0\.layer\.1\.EncDecAttention\.relative_attention_bias\.weight",
+        r"lm_head\.weight",
     ]
-    def __init__(self, config):
+    def __init__(self, config, loss_type=None, n_layer=None, num_classes=None):
         super().__init__(config)
+        loss_type = loss_type if loss_type else getattr(config, "loss_type", None)
+        n_layer = n_layer if n_layer else getattr(config, "n_layer", 1)
+        lm_head_layers = []
+        unit_layer = [
+                nn.Linear(config.d_model, config.d_model),
+                nn.BatchNorm1d(config.d_model),
+                nn.ReLU(),
+                nn.Dropout(config.dropout_rate)
+                ]
+        for i in range(n_layer-1):
+            lm_head_layers.extend(unit_layer)
+        if loss_type == "KLD":
+            lm_head_layers.extend([
+                nn.Linear(config.d_model, 2),
+                nn.LogSoftmax(dim=-1)
+                ])
+        elif loss_type == "MSE":
+            lm_head_layers.extend([
+                nn.Linear(config.d_model, 1),
+                nn.Sigmoid()
+                ])
+        else:
+            num_classes = num_classes if num_classes else getattr(config, "num_classes", None)
+            lm_head_layers.extend([
+                nn.Linear(config.d_model, num_classes)
+                ])
+            self.config.num_classes = num_classes
+        self.set_output_embeddings(nn.Sequential(*lm_head_layers))
+        self.config.tie_word_embeddings = False
+        self.config.loss_type = loss_type
+        self.config.n_layer = n_layer
 
     def forward(
         self,
@@ -114,7 +147,11 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
 
         if labels is not None and decoder_input_ids is None and decoder_inputs_embeds is None:
             # get decoder inputs from shifting lm labels to the right
-            decoder_input_ids = self._shift_right(labels)
+            # decoder_input_ids = self._shift_right(labels)
+            decoder_input_ids = torch.full((labels.size(0),1),
+                                            self.config.decoder_start_token_id,
+                                            dtype=torch.long,
+                                            device=labels.device)
 
         # If decoding with past key value states, only the last tokens
         # should be given as an input
@@ -164,19 +201,33 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
             sequence_output = sequence_output * (self.model_dim ** -0.5)
 
-        lm_logits = self.lm_head(sequence_output)
+        lm_logits = self.lm_head(sequence_output.view(sequence_output.size()[0], -1))
 
         loss = None
         if labels is not None:
-            loss_fct = nn.KLDivLoss(reduction='batchmean')
-            smoothed_label = torch.stack([(100-labels.float()), labels.float()], dim=1)/100
-            loss = loss_fct(lm_logits, smoothed_label)
-            lm_logits = lm_logits[:,-1]
+            if self.config.loss_type == "KLD":
+                loss_fct = nn.KLDivLoss(reduction='batchmean')
+                smoothed_label = torch.stack([(100-labels), labels], dim=1)/100
+                loss = loss_fct(lm_logits, smoothed_label.view(-1,2))
+                lm_logits = torch.exp(lm_logits[:,-1])*100
+            elif self.config.loss_type == "MSE":
+                loss_fct = nn.MSELoss()
+                smoothed_label = labels/100
+                loss = loss_fct(lm_logits.view(-1), smoothed_label.view(-1))
+                lm_logits = lm_logits.view(-1)*100
+            else:
+                loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+                labels = labels.long()
+                # scale_factor = 100//self.config.num_classes
+                # loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1)/scale_factor)
+                loss = loss_fct(lm_logits, labels.view(-1))
+                # lm_logits = torch.argmax(lm_logits, axis=-1).float().squeeze()*scale_factor+scale_factor/2
+                lm_logits = torch.argmax(lm_logits, axis=-1)
             # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
 
         if not return_dict:
-            output = (lm_logits,) decoder_outputs[1:] encoder_outputs
-            return ((loss,) output) if loss is not None else output
+            output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
+            return ((loss,) + output) if loss is not None else output
 
         return Seq2SeqLMOutput(
             loss=loss,
@@ -189,3 +240,8 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
             encoder_hidden_states=encoder_outputs.hidden_states,
             encoder_attentions=encoder_outputs.attentions,
         )
+
+    def freeze_body(self):
+        for name, param in self.named_parameters():
+            if not name.startswith('lm_head'):
+                param.requires_grad = False

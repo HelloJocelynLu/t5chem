@@ -42,7 +42,7 @@ def add_args(parser):
     )
     parser.add_argument(
         "--task_prefix",
-        default='Product:',
+        default='Classification:',
         help="Prefix of current task. ('Product:', 'Yield:', 'Fill-Mask:')",
     )
     parser.add_argument(
@@ -51,10 +51,9 @@ def add_args(parser):
         help="Tokenizer to use. (Default: 'simple'. Options: 'smiles', 'selfies')",
     )
     parser.add_argument(
-        "--vocab_size",
-        default=2400,
-        type=int,
-        help="The max_size of vocabulary.",
+        "--loss_type",
+        default='KLD',
+        help="Loss type: KLD (KLDivLoss, default) or MSE (MSELoss) or Other (Multiclass classification)",
     )
     parser.add_argument(
         "--max_source_length",
@@ -75,10 +74,27 @@ def add_args(parser):
         help="Batch size for training and validation.",
     )
     parser.add_argument(
+        "--num_classes",
+        default=100,
+        type=int,
+        help="Number of classes if used as classification.",
+    )
+    parser.add_argument(
+        "--num_readout_layer",
+        default=1,
+        type=int,
+        help="Number of readout layers.",
+    )
+    parser.add_argument(
         "--learning_rate",
         default=5e-5,
         type=float,
         help="The initial learning rate for Adam.",
+    )
+    parser.add_argument(
+        "--freeze_pretrain",
+        action="store_true",
+        help="Whether to freeze weights loaded from pretraining.",
     )
     parser.add_argument(
         "--EMA",
@@ -110,11 +126,11 @@ def add_args(parser):
     )
 
 
-def CalMSELoss(PredictionOutput, tokenizer):
+def CalMSELoss(PredictionOutput):
     predictions = PredictionOutput.predictions
-    label_ids = PredictionOutput.label_ids/100
+    label_ids = PredictionOutput.label_ids.squeeze()
     loss_fcn = nn.MSELoss()
-    loss = loss_fcn(torch.Tensor(preds), torch.Tensor(labels))
+    loss = loss_fcn(torch.Tensor(predictions), torch.Tensor(label_ids))
     return {'mse_loss': loss.item()}
 
 def main():
@@ -139,7 +155,15 @@ def main():
     else:
         Tokenizer = T5SelfiesTokenizer
 
-    tokenizer = Tokenizer(args.vocab, max_size=args.vocab_size)
+    model = T5ForSoftLabel.from_pretrained(args.pretrain, 
+                                           loss_type=args.loss_type,
+                                           n_layer=args.num_readout_layer,
+                                           num_classes=args.num_classes)
+    
+    if args.freeze_pretrain:
+        model.freeze_body()
+
+    tokenizer = Tokenizer(args.vocab, max_size=model.config.vocab_size)
     os.makedirs(args.output_dir, exist_ok=True)
     tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
 
@@ -150,6 +174,7 @@ def main():
                                     type_path="train")
 
     do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
+    do_train_eval = os.path.exists(os.path.join(args.data_dir, 'train_eval.source'))
     if do_eval:
         eval_strategy = "steps"
         eval_iter = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
@@ -161,14 +186,20 @@ def main():
         eval_strategy = "no"
         eval_iter = None
 
-    model = T5ForSoftLabel.from_pretrained(args.pretrain)
-
-    model.config.tie_word_embeddings=False
+    if do_train_eval:
+        train_eval_dataset = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
+                                      prefix=args.task_prefix,
+                                      max_source_length=args.max_source_length,
+                                      separate_vocab=True,
+                                      type_path="train_eval")
+    else:
+        train_eval_dataset = None
 
     if args.EMA:
         model = EMA(model, 0.999)
 
-    compute_metrics = partial(CalMSELoss, tokenizer=tokenizer)
+    data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
+    compute_metrics = CalMSELoss if args.loss_type in {"KLD", "MSE"} else None
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -187,6 +218,7 @@ def main():
     )
 
     trainer = EarlyStopTrainer(
+        train_eval_dataset=train_eval_dataset,
         model=model,
         args=training_args,
         data_collator=data_collator_pad1,
