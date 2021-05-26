@@ -133,6 +133,12 @@ def CalMSELoss(PredictionOutput):
     loss = loss_fcn(torch.Tensor(predictions), torch.Tensor(label_ids))
     return {'mse_loss': loss.item()}
 
+def AccuracyMetrics(PredictionOutput):
+    predictions = PredictionOutput.predictions
+    label_ids = PredictionOutput.label_ids.reshape(-1).astype(np.int64)
+    correct = np.sum(predictions == label_ids)
+    return {'accuracy': correct/len(predictions)}
+
 def main():
     parser = argparse.ArgumentParser()
     add_args(parser)
@@ -199,7 +205,7 @@ def main():
         model = EMA(model, 0.999)
 
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
-    compute_metrics = CalMSELoss if args.loss_type in {"KLD", "MSE"} else None
+    compute_metrics = CalMSELoss if args.loss_type in {"KLD", "MSE"} else AccuracyMetrics
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,

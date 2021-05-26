@@ -1,0 +1,3 @@
+#python src/run_trainer.py --data_dir data/USPTO_50k/ --output_dir models/USPTO_50k/AMD/ --vocab data/vocab/mol_all_simpletokenizer.pt --task_prefix Product: --num_epoch 100 --vocab_size 100 --learning_rate 5e-4 --max_target_length 200 --log_steps 1500 --max_source_length 400 --tokenizer simple --batch_size 64 --pretrain models/simple_smiles2/train_9/
+python src/run_predict.py --data_dir data/USPTO_50k/ --model_dir models/USPTO_50k/AMD/ --num_beams 10 --batch_size 64 --max_target_length 200 --task_prefix Product: --vocab_size 100 --tokenizer simple --max_source_length 400
+python src/evaluate_predictions.py --prediction models/USPTO_50k/AMD/predictions.csv --type text

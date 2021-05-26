@@ -484,8 +484,6 @@ class SelfiesTokenizer(PreTrainedTokenizer):
         """
         Tokenize a SMILES molecule or reaction
         """
-
-
         return list(split_selfies(text))
 
     def _convert_token_to_id(self, token):
@@ -556,6 +554,7 @@ class SimpleTokenizer(PreTrainedTokenizer):
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
+    model_input_names = ["input_ids", "attention_mask"]
 
     def __init__(
         self,

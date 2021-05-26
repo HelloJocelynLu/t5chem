@@ -136,6 +136,18 @@ def add_args(parser):
         type=int,
         help="The maximum number of chackpoints to be kept.",
     )
+    parser.add_argument(
+        "--num_workers",
+        default=0,
+        type=int,
+        help="The number of workers used in Dataloader.",
+    )
+    parser.add_argument(
+        "--local_rank",
+        default=-1,
+        type=int,
+        help="Rank of the process during distributed training.",
+    )
 
 
 def AccuracyMetrics(PredictionOutput, tokenizer):
@@ -143,10 +155,11 @@ def AccuracyMetrics(PredictionOutput, tokenizer):
                            tokenizer.pad_token_id, PredictionOutput.predictions)
     label_ids = np.where(PredictionOutput.label_ids==-100, \
                          tokenizer.pad_token_id, PredictionOutput.label_ids)
-    pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-    label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
-    correct = np.sum([a==b for a, b in zip(label_str,pred_str)])
-    return {'accuracy': correct/len(label_str)}
+#    pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+#    label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+#    correct = np.sum([a==b for a, b in zip(label_str,pred_str)])
+    correct = np.all(predictions==label_ids, 1).sum()
+    return {'accuracy': correct/len(label_ids)}
 
 def CalMSELoss(PredictionOutput, tokenizer):
     predictions = np.where(PredictionOutput.predictions==-100, \
@@ -251,7 +264,9 @@ def main():
         per_device_train_batch_size=args.batch_size,
         logging_steps=args.log_steps,
         per_device_eval_batch_size=args.batch_size,
+        local_rank=args.local_rank,
         save_steps=args.save_steps,
+       # dataloader_num_workers=args.num_workers,
         save_total_limit=args.save_total_limit,
         learning_rate=args.learning_rate,
         prediction_loss_only=(compute_metrics is None),

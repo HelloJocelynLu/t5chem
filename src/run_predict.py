@@ -49,13 +49,13 @@ def add_args(parser):
     )
     parser.add_argument(
         "--max_source_length",
-        default=300,
+        default=200,
         type=int,
         help="The maximum source length after tokenization.",
     )
     parser.add_argument(
         "--max_target_length",
-        default=100,
+        default=200,
         type=int,
         help="The maximum target length after tokenization.",
     )
@@ -82,6 +82,12 @@ def add_args(parser):
         default=64,
         type=int,
         help="Batch size for training and validation.",
+    )
+    parser.add_argument(
+        "--num_workers",
+        default=0,
+        type=int,
+        help="The number of workers used in Dataloader.",
     )
 
 
@@ -114,6 +120,7 @@ def main():
                                     type_path=base)
     data_collator_pad1 = partial(data_collator, pad_token_id=tokenizer.pad_token_id)
     test_loader = DataLoader(testset, batch_size=args.batch_size,
+                             num_workers=args.num_workers,
                              collate_fn=data_collator_pad1)
 
     task_specific_params = {
@@ -152,7 +159,7 @@ def main():
             outputs = model.generate(**batch, **task_specific_params['Reaction'])
         for i,pred in enumerate(outputs):
             prod = tokenizer.decode(pred, skip_special_tokens=True,
-                clean_up_tokenization_spaces=False)
+                    clean_up_tokenization_spaces=False)
             predictions[i % args.num_preds].append(prod)
 
     for i, preds in enumerate(predictions):

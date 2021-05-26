@@ -50,6 +50,7 @@ def main():
     num_preds = len(predictions.columns)-1
 
     if args.type == 'text':
+        predictions = predictions.astype(str)
         if not args.simple:
             for i in range(1, num_preds+1):
                 predictions['prediction_{}'.format(i)] = predictions['prediction_{}'.format(i)].apply(standize)

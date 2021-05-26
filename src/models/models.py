@@ -73,13 +73,14 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
         lm_head_layers = []
         unit_layer = [
                 nn.Linear(config.d_model, config.d_model),
-                nn.BatchNorm1d(config.d_model),
+              #  nn.BatchNorm1d(config.d_model),
                 nn.ReLU(),
-                nn.Dropout(config.dropout_rate)
                 ]
         for i in range(n_layer-1):
             lm_head_layers.extend(unit_layer)
-        if loss_type == "KLD":
+        if not loss_type:
+            pass
+        elif loss_type == "KLD":
             lm_head_layers.extend([
                 nn.Linear(config.d_model, 2),
                 nn.LogSoftmax(dim=-1)
@@ -145,13 +146,13 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
         if self.model_parallel:
             torch.cuda.set_device(self.decoder.first_device)
 
-        if labels is not None and decoder_input_ids is None and decoder_inputs_embeds is None:
+        if decoder_input_ids is None and decoder_inputs_embeds is None:
             # get decoder inputs from shifting lm labels to the right
             # decoder_input_ids = self._shift_right(labels)
-            decoder_input_ids = torch.full((labels.size(0),1),
+            decoder_input_ids = torch.full((input_ids.size(0),1),
                                             self.config.decoder_start_token_id,
                                             dtype=torch.long,
-                                            device=labels.device)
+                                            device=input_ids.device)
 
         # If decoding with past key value states, only the last tokens
         # should be given as an input
@@ -200,8 +201,11 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
             # Rescale output before projecting on vocab
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
             sequence_output = sequence_output * (self.model_dim ** -0.5)
-
-        lm_logits = self.lm_head(sequence_output.view(sequence_output.size()[0], -1))
+        if self.lm_head:
+            lm_logits = self.lm_head(sequence_output.view(sequence_output.size()[0], -1))
+        else:
+            lm_logits = sequence_output.view(sequence_output.size()[0], -1)
+            labels = None
 
         loss = None
         if labels is not None:
@@ -243,5 +247,6 @@ class T5ForSoftLabel(T5ForConditionalGeneration):
 
     def freeze_body(self):
         for name, param in self.named_parameters():
-            if not name.startswith('lm_head'):
+            if not (name.startswith('lm_head')):
+                #    or 'shared' in name):
                 param.requires_grad = False
