@@ -32,11 +32,6 @@ def add_args(parser):
         help="The file name for prediction.",
     )
     parser.add_argument(
-        "--task_prefix",
-        default='Product:',
-        help="Prefix of current task. ('Product:', 'Yield:', 'Fill-Mask:')",
-    )
-    parser.add_argument(
         "--tokenizer",
         default='smiles',
         help="Tokenizer to use. (Default: 'smiles'. 'selfies')",
@@ -70,24 +65,6 @@ def add_args(parser):
         default=5,
         type=int,
         help="The number of independently computed returned sequences for each element in the batch.",
-    )
-    parser.add_argument(
-        "--rep_penalty",
-        default=1.0,
-        type=float,
-        help="The parameter for repetition penalty. 1.0 means no penalty.",
-    )
-    parser.add_argument(
-        "--temperature",
-        default=1.0,
-        type=float,
-        help="A measure of how risky our model will be when picking words",
-    )
-    parser.add_argument(
-        "--do_sample",
-        default=False,
-        type=bool,
-        help="Whether or not to use sampling ; use greedy decoding otherwise.",
     )
     parser.add_argument(
         "--batch_size",

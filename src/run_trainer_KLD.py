@@ -144,6 +144,7 @@ def main():
     add_args(parser)
     args = parser.parse_args()
 
+    print(args)
     torch.cuda.manual_seed(8570)
     np.random.seed(8570)
     torch.manual_seed(8570)
