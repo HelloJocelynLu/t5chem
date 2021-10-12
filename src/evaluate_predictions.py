@@ -57,11 +57,12 @@ def main():
         predictions['rank'] = predictions.apply(lambda row: get_rank(row, 'prediction_', num_preds), axis=1)
 
         correct = 0
+        invalid_smiles = 0
         for i in range(1, num_preds+1):
             correct += (predictions['rank'] == i).sum()
-            invalid_smiles = (predictions['prediction_{}'.format(i)] == '').sum()
+            invalid_smiles += (predictions['prediction_{}'.format(i)] == '').sum()
             print('Top-{}: {:.1f}% || Invalid {:.2f}%'.format(i, correct/len(predictions)*100,
-                                                                     invalid_smiles/len(predictions)*100))
+                                                                     invalid_smiles/len(predictions)/i*100))
     
     else:
         for i in range(1, num_preds+1):
@@ -77,7 +78,7 @@ def main():
         MSE = mean_squared_error(predictions['target'], predictions['prediction'])
         slope, intercept, r_value, p_value, std_err = \
             scipy.stats.linregress(predictions['prediction'], predictions['target'])
-        print("MAE: {}    RMSE: {}    r2: {}".format(MAE, MSE**0.5, r_value**2))
+        print("MAE: {}    RMSE: {}    r2: {}    r:{}".format(MAE, MSE**0.5, r_value**2, r_value))
 
 if __name__ == "__main__":
     main()

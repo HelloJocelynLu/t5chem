@@ -1,0 +1,12 @@
+python src/run_predict.py --data_dir data/USPTO_MT/top10/Product --model_dir models/USPTO_MT/Product/ --num_beams 10 --batch_size 64 --max_target_length 200 --task_prefix Product: --vocab_size 100 --tokenizer simple --max_source_length 300 --prediction models/USPTO_MT/Product/top10_predictions.csv
+python src/evaluate_predictions.py --prediction models/USPTO_MT/Product/top10_predictions.csv --type text
+python src/run_predict.py --data_dir data/USPTO_MT/top10/Retrosynthesis/ --model_dir models/USPTO_MT/Retrosynthesis/ --num_beams 10 --batch_size 64 --max_target_length 350 --task_prefix Retrosynthesis: --vocab_size 100 --tokenizer simple --max_source_length 200 --prediction models/USPTO_MT/Retrosynthesis/top10_predictions.csv
+python src/evaluate_predictions.py --prediction models/USPTO_MT/Retrosynthesis/top10_predictions.csv --type text
+python src/run_predict.py --data_dir data/USPTO_MT/top10/Reactants/ --model_dir models/USPTO_MT/Reactants/ --num_beams 10 --batch_size 64 --max_target_length 200 --task_prefix Reactants: --vocab_size 100 --tokenizer simple --max_source_length 200 --prediction models/USPTO_MT/Reactants/top10_predictions.csv
+python src/evaluate_predictions.py --prediction models/USPTO_MT/Reactants/top10_predictions.csv --type text
+python src/run_predict.py --data_dir data/USPTO_MT/top10/Reagents/ --model_dir models/USPTO_MT/Reagents/ --num_beams 10 --batch_size 64 --max_target_length 300 --task_prefix Reagents: --vocab_size 100 --tokenizer simple --max_source_length 200 --prediction models/USPTO_MT/Reagents/top10_predictions.csv
+python src/evaluate_predictions.py --prediction models/USPTO_MT/Reagents/top10_predictions.csv --type text
+python src/run_predict_KLDiv.py --data_dir data/USPTO_MT/top10/Yield/ --model_dir models/USPTO_MT/Yield/ --batch_size 64 --max_source_length 400 --task_prefix Yield: --tokenizer simple --prediction models/USPTO_MT/Yield/top10_predictions.csv
+python src/evaluate_predictions.py --prediction models/USPTO_MT/Yield/top10_predictions.csv --type value
+python src/run_predict_KLDiv.py --data_dir data/USPTO_MT/top10/Classification/ --model_dir models/USPTO_MT/Classification/ --batch_size 64 --max_source_length 400 --task_prefix Classification: --tokenizer simple --prediction models/USPTO_MT/Classification/top10_predictions.csv
+python src/evaluate_predictions.py --prediction models/USPTO_MT/Classification/top10_predictions.csv --simple

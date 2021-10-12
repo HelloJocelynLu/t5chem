@@ -107,7 +107,7 @@ class EarlyStopTrainer(Trainer):
             if logits is not None:
                 # preds_host = logits if preds_host is None else nested_concat(preds_host, logits, padding_index=-100)
                 logits = logits[0]
-                logits_reduced = torch.argmax(logits, axis=-1) if len(logits.size())>1 else logits
+                logits_reduced = torch.argmax(logits, axis=-1) if (len(logits.size())>1 and logits.size()[-1]>2) else logits
                 preds_host = logits_reduced if preds_host is None else nested_concat(preds_host, logits_reduced, padding_index=-100)
             if labels is not None:
                 labels_host = labels if labels_host is None else nested_concat(labels_host, labels, padding_index=-100)

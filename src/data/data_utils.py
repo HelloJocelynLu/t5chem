@@ -13,9 +13,9 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
-#from .selfies import split_selfies
+from .selfies import split_selfies
 
-TASK_PREFIX = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', 'Classification:']
+TASK_PREFIX = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', 'Classification:', 'Reagents:', 'Reactants:']
 
 class LineByLineTextDataset(Dataset):
     def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, prefix=''):
@@ -797,7 +797,7 @@ class T5SelfiesTokenizer(SelfiesTokenizer):
         cur_added_len = len(task_prefixs)
         for i in range(cur_added_len, extra_to_add):
             task_prefixs.append('<extra_id_{}>'.format(str(i)))
-        self.add_tokens(task_prefixs, special_tokens=True)
+        self.add_tokens(task_prefixs+['>'], special_tokens=True)
         self.unique_no_split_tokens = sorted(
             set(self.unique_no_split_tokens).union(set(self.all_special_tokens))
         )
@@ -843,3 +843,52 @@ def data_collator(batch, pad_token_id):
     return {'input_ids': source_ids, 'attention_mask': source_mask,
             # 'decoder_input_ids': y_ids, 
             'labels': y}
+
+class MultiTaskPrefixDataset(Dataset):
+    def __init__(
+        self,
+        tokenizer,
+        data_dir,
+        prefix='',
+        type_path="train",
+        max_source_length=500,
+    ):
+        super().__init__()
+
+        self.prefix = prefix
+        self._source_path = os.path.join(data_dir, type_path + ".source")
+        self._target_path = os.path.join(data_dir, type_path + ".target")
+        self._len_source = int(subprocess.check_output("wc -l " + self._source_path, shell=True).split()[0])
+        self._len_target = int(subprocess.check_output("wc -l " + self._target_path, shell=True).split()[0])
+        assert self._len_source == self._len_target, "Source file and target file don't match!"
+        self.tokenizer = tokenizer
+        self.max_source_len = max_source_length
+
+    def __len__(self):
+        return self._len_source
+
+    def __getitem__(self, idx):
+        source_line = linecache.getline(self._source_path, idx + 1).strip()
+        source_sample = self.tokenizer(
+                        self.prefix+source_line,
+                        max_length=self.max_source_len,
+                        padding="do_not_pad",
+                        truncation=True,
+                        return_tensors='pt',
+                    )
+        target_line = linecache.getline(self._target_path, idx + 1).strip()
+        try:
+            target_line = [float(x) for x in target_line.split()]
+            target_ids = torch.Tensor(target_line)
+        except TypeError:
+            print("The target should be numbers, \
+                    not {}".format(target_line))
+            raise AssertionError
+        source_ids = source_sample["input_ids"].squeeze(0)
+        src_mask = source_sample["attention_mask"].squeeze(0)
+        return {"input_ids": source_ids, "attention_mask": src_mask,
+                "decoder_input_ids": target_ids}
+
+    def sort_key(self, ex):
+        """ Sort using length of source sentences. """
+        return len(ex['input_ids'])
