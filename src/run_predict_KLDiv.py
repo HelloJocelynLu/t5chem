@@ -62,7 +62,7 @@ def main():
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    model = T5ForSoftLabel.from_pretrained(args.model_dir)
+    model: int = T5ForSoftLabel.from_pretrained(args.model_dir)
 #    archive_file = os.path.join(args.model_dir, "pytorch_model.bin")
 #    model.load_state_dict(torch.load(archive_file, map_location="cpu"))
     model.eval()
