@@ -1,12 +1,33 @@
 import linecache
 import os
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, NamedTuple
 
+import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizer
+from transformers.trainer_utils import PredictionOutput
+
+
+class TaskSettings(NamedTuple):
+    prefix: str
+    max_source_length: int
+    max_target_length: int
+    output_layer: str
+
+
+T5ChemTasks: Dict[str, TaskSettings] = {
+    'product': TaskSettings('Product:', 400, 200, 'seq2seq'),
+    'reactants': TaskSettings('Reactants:', 200, 300, 'seq2seq'),
+    'reagents:': TaskSettings('Reagents:', 400, 200, 'seq2seq'),
+    'classification': TaskSettings('Classification:', 500, 1, 'classification'),
+    'regression': TaskSettings('Yield:', 500, 1, 'regression'),
+    'pretrain': TaskSettings('Fill-Mask:', 400, 200, 'seq2seq'),
+    'mixed': TaskSettings('', 400, 300, 'seq2seq'),
+}
+
 
 class LineByLineTextDataset(Dataset):
     def __init__(
@@ -118,3 +139,16 @@ def data_collator(batch: List[BatchEncoding], pad_token_id: int) -> Dict[str, to
         whole_batch["input_ids"], whole_batch["attention_mask"], whole_batch["decoder_input_ids"]
     return {'input_ids': source_ids, 'attention_mask': source_mask,
             'labels': y}
+
+
+def CalMSELoss(model_output: PredictionOutput) -> Dict[str, float]:
+    predictions: np.ndarray = model_output.predictions # type: ignore
+    label_ids: np.ndarray = model_output.label_ids.squeeze() # type: ignore
+    loss: float = ((predictions - label_ids)**2).mean()
+    return {'mse_loss': loss}
+
+def AccuracyMetrics(model_output: PredictionOutput) -> Dict[str, float]:
+    predictions: np.ndarray = model_output.predictions # type: ignore
+    label_ids: np.ndarray = model_output.label_ids.reshape(-1).astype(np.int64) # type: ignore
+    correct: int = np.sum(predictions == label_ids)
+    return {'accuracy': correct/len(predictions)}

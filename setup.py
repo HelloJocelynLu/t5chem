@@ -27,7 +27,14 @@ setup(
 
     packages=find_packages(exclude=('tests',)),
 
-    install_requires=[],
+    install_requires=[
+        "transformers==4.10.2",
+        "selfies==1.0.4",
+        "shap==0.39.0",
+        "scikit-learn==0.24.1",
+        "torchtext==0.8.0",
+        "scipy==1.6.0",
+    ],
 
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',

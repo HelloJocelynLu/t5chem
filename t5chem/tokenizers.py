@@ -16,7 +16,7 @@ if importlib.util.find_spec("selfies"):
     is_selfies_available = True
 pattern: str = "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
 regex: re.Pattern = re.compile(pattern)
-TASK_PREFIX: List[str] = ['Yield:', 'Product:', 'Fill-Mask:', 'Retrosynthesis:', 'Classification:', 'Reagents:', 'Reactants:']
+TASK_PREFIX: List[str] = ['Yield:', 'Product:', 'Fill-Mask:', 'Classification:', 'Reagents:', 'Reactants:']
 
 class MolTokenizer(ABC, PreTrainedTokenizer):
     r"""
@@ -208,13 +208,13 @@ class SimpleTokenizer(MolTokenizer):
             The token used for padding, for example when batching sequences of different lengths.
         eos_token (:obj:`string`, `optional`, defaults to '</s>'):
             string: an end of sentence token.
-        vocab_size: (:obj:`int`, `optional`, defaults to `None`):
+        max_size: (:obj:`int`, `optional`, defaults to 100):
             The final vocabulary size. `None` for no limit.
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, max_size=100, **kwargs) -> None:
+        super().__init__(max_size=max_size, **kwargs)
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 
         return list(text)
@@ -238,13 +238,13 @@ class AtomTokenizer(MolTokenizer):
             The token used for padding, for example when batching sequences of different lengths.
         eos_token (:obj:`string`, `optional`, defaults to '</s>'):
             string: an end of sentence token.
-        vocab_size: (:obj:`int`, `optional`, defaults to `None`):
+        max_size: (:obj:`int`, `optional`, defaults to 1000):
             The final vocabulary size. `None` for no limit.
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, max_size=1000, **kwargs) -> None:
+        super().__init__(max_size=max_size, **kwargs)
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 
         tokens: List[str] = [token for token in regex.findall(text)]
@@ -270,13 +270,13 @@ class SelfiesTokenizer(MolTokenizer):
             The token used for padding, for example when batching sequences of different lengths.
         eos_token (:obj:`string`, `optional`, defaults to '</s>'):
             string: an end of sentence token.
-        vocab_size: (:obj:`int`, `optional`, defaults to `None`):
+        max_size: (:obj:`int`, `optional`, defaults to 1000):
             The final vocabulary size. `None` for no limit.
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, max_size=1000, **kwargs) -> None:
+        super().__init__(max_size=max_size, **kwargs)
         assert is_selfies_available, "You need to install selfies package to use SelfiesTokenizer"
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 

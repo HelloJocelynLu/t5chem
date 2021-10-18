@@ -48,15 +48,15 @@ class T5ForProperty(T5ForConditionalGeneration):
             lm_head_layers.extend(unit_layer)
         if not head_type:
             pass
-        elif head_type == "Classification":
+        elif head_type == "classification":
             num_classes = num_classes if num_classes else getattr(config, "num_classes", 500)
             lm_head_layers.extend([
                 nn.Linear(config.d_model, num_classes)
                 ])
             self.config.num_classes = num_classes # type: ignore
         else:
-            assert head_type == "Regression", \
-                "Only `Classification` or `Regression` are currently supported for output layer"
+            assert head_type == "regression", \
+                "Only `classification` or `regression` are currently supported for output layer"
             lm_head_layers.extend([
                 nn.Linear(config.d_model, 2),
                 nn.LogSoftmax(dim=-1)
@@ -173,7 +173,7 @@ class T5ForProperty(T5ForConditionalGeneration):
 
         loss = None
         if labels is not None:
-            if self.head_type == "Classification":
+            if self.head_type == "classification":
                 loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
                 labels = labels.long()
                 loss = loss_fct(lm_logits, labels.view(-1))
