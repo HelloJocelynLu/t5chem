@@ -78,10 +78,10 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
             `torchtext.vocab.Vocab`
         """
         merged: Counter = sum([vocab.freqs for vocab in vocabs], Counter())
-        special_tokens: List[str] = list(self.special_tokens_map.values())
+        special_tokens: List[str] = list(self.special_tokens_map.values())  # type: ignore
         return Vocab(merged,
                     specials=special_tokens,
-                    max_size=vocab_size-len(special_tokens))
+                    max_size=vocab_size-len(special_tokens) if vocab_size else vocab_size)
 
     def create_vocab(
         self, 

@@ -1,10 +1,10 @@
-from rdkit import Chem
-import rdkit
 import argparse
-import scipy
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+
 import pandas as pd
-import numpy as np
+import rdkit
+import scipy
+from rdkit import Chem
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 
 def add_args(parser):
