@@ -2,9 +2,9 @@ import io
 import os
 import re
 
+from pathlib import Path
 from setuptools import find_packages
 from setuptools import setup
-
 
 def read(filename):
     filename = os.path.join(os.path.dirname(__file__), filename)
@@ -13,9 +13,17 @@ def read(filename):
         return re.sub(text_type(r':[a-z]+:`~?(.*?)`'), text_type(r'``\1``'), fd.read())
 
 
+def version():
+    """ Get the local package version. """
+    namespace = {}
+    path = Path("t5chem", "__version__.py")
+    exec(path.read_text(), namespace)
+    return namespace["__version__"]
+
+
 setup(
     name="t5chem",
-    version="0.8.0",
+    version=version(),
     url="https://github.com/HelloJocelynLu/t5chem",
     license='MIT',
 
@@ -26,7 +34,12 @@ setup(
     long_description=read("README.rst"),
 
     packages=find_packages(exclude=('tests',)),
-
+    package_data={'t5chem': ['vocab/*']},
+    entry_points={
+        'console_scripts': [
+            't5chem = t5chem.__main__:main',
+        ],
+    },
     install_requires=[
         "transformers==4.10.2",
         "selfies==1.0.4",

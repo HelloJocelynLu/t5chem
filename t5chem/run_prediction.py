@@ -4,14 +4,17 @@ from functools import partial
 
 import pandas as pd
 import torch
+import rdkit
 from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5Config, T5ForConditionalGeneration
 
-from .data_utils import T5ChemTasks, TaskPrefixDataset, data_collator
-from .model import T5ForProperty
-from .tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
-
+import scipy
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from data_utils import T5ChemTasks, TaskPrefixDataset, data_collator
+from model import T5ForProperty
+from mol_tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
+from evaluation import get_rank, standize
 
 def add_args(parser):
     parser.add_argument(
@@ -52,10 +55,9 @@ def add_args(parser):
     )
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    add_args(parser)
-    args = parser.parse_args()
+def predict(args):
+    lg = rdkit.RDLogger.logger()  
+    lg.setLevel(rdkit.RDLogger.CRITICAL) 
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -107,7 +109,7 @@ def main():
 
         with open(os.path.join(args.data_dir, base+".target")) as rf:
             for line in rf:
-                targets.append(line.strip()[:args.max_target_length])
+                targets.append(line.strip()[:task.max_target_length])
     
         predictions = [[] for i in range(args.num_preds)]
         for batch in tqdm(test_loader, desc="prediction"):
@@ -141,12 +143,35 @@ def main():
     if isinstance(predictions[0], list):
         for i, preds in enumerate(predictions):
             test_df['prediction_{}'.format(i + 1)] = preds
+            test_df['prediction_{}'.format(i + 1)] = \
+                test_df['prediction_{}'.format(i + 1)].apply(standize)
+        test_df['rank'] = test_df.apply(lambda row: get_rank(row, 'prediction_', args.num_preds), axis=1)
+
+        correct = 0
+        invalid_smiles = 0
+        for i in range(1, args.num_preds+1):
+            correct += (test_df['rank'] == i).sum()
+            invalid_smiles += (test_df['prediction_{}'.format(i)] == '').sum()
+            print('Top-{}: {:.1f}% || Invalid {:.2f}%'.format(i, correct/len(test_df)*100, \
+                invalid_smiles/len(test_df)/i*100))
+    elif task.output_layer == 'regression':
+        test_df['prediction'] = predictions
+        MAE = mean_absolute_error(test_df['target'], test_df['prediction'])      
+        MSE = mean_squared_error(test_df['target'], test_df['prediction'])
+        slope, intercept, r_value, p_value, std_err = \
+            scipy.stats.linregress(test_df['prediction'], test_df['target'])
+        print("MAE: {}    RMSE: {}    r2: {}    r:{}".format(MAE, MSE**0.5, r_value**2, r_value))
     else:
         test_df['prediction_1'] = predictions
+        correct = sum(test_df['prediction_1'] == test_df['target'])
+        print('Accuracy: {:.1f}%'.format(correct/len(test_df)*100))
 
     if not args.prediction:
         args.prediction = os.path.join(args.model_dir, 'predictions.csv')
     test_df.to_csv(args.prediction, index=False)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    add_args(parser)
+    args = parser.parse_args()
+    predict(args)

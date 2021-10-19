@@ -31,6 +31,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
         bos_token: str='<s>',
         pad_token: str="<blank>",
         eos_token: str='</s>',
+        mask_token: str='<mask>',
         max_size: int=1000,
         task_prefixs: List[str] =TASK_PREFIX,
         **kwargs
@@ -40,6 +41,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
             bos_token=bos_token,
             pad_token=pad_token,
             eos_token=eos_token,
+            mask_token=mask_token,
             **kwargs)
 
         self.create_vocab(
@@ -76,9 +78,10 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
             `torchtext.vocab.Vocab`
         """
         merged: Counter = sum([vocab.freqs for vocab in vocabs], Counter())
+        special_tokens: List[str] = list(self.special_tokens_map.values())
         return Vocab(merged,
-                    specials=list(self.special_tokens_map.values()),
-                    max_size=vocab_size)
+                    specials=special_tokens,
+                    max_size=vocab_size-len(special_tokens))
 
     def create_vocab(
         self, 
@@ -102,7 +105,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
                     "Can't find a vocabulary file at path '{}'.".format(vocab_file)
                 )
             else:
-                self.vocab: Vocab = torch.load(vocab_file)
+                self.vocab: Vocab = self.merge_vocabs([torch.load(vocab_file)], vocab_size=vocab_size)
 
         elif source_files:
             if isinstance(source_files, str):

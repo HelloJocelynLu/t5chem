@@ -1,4 +1,5 @@
 from rdkit import Chem
+import rdkit
 import argparse
 import scipy
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -48,11 +49,14 @@ def main():
     parser = argparse.ArgumentParser()
     add_args(parser)
     args = parser.parse_args()
-    
+
+    lg = rdkit.RDLogger.logger()  
+    lg.setLevel(rdkit.RDLogger.CRITICAL) 
+
     print('evaluating {}'.format(args.prediction))
     predictions = pd.read_csv(args.prediction)
     predictions.fillna('', inplace=True)
-    num_preds = len(predictions.columns)-1
+    num_preds = len([x for x in predictions.columns if 'prediction' in x])
 
     if args.type == 'text':
         predictions = predictions.astype(str)
@@ -70,15 +74,15 @@ def main():
                                                                      invalid_smiles/len(predictions)/i*100))
     
     else:
-        for i in range(1, num_preds+1):
-            predictions['prediction_{}'.format(i)] = pd.to_numeric(predictions['prediction_{}'.format(i)], errors='coerce')
-        predictions = predictions.replace(np.nan, 0, regex=True)
-        if args.average > num_preds:
-            print("WARNING: only {} predictions exists, but {} required. Will use all.".format(num_preds, args.average))
-            args.average = num_preds
-        if args.average == 0:
-            args.average = num_preds
-        predictions['prediction'] = predictions[['prediction_{}'.format(i) for i in range(1,args.average+1)]].mean(1)
+        # for i in range(1, num_preds+1):
+        #     predictions['prediction_{}'.format(i)] = pd.to_numeric(predictions['prediction_{}'.format(i)], errors='coerce')
+        # predictions = predictions.replace(np.nan, 0, regex=True)
+        # if args.average > num_preds:
+        #     print("WARNING: only {} predictions exists, but {} required. Will use all.".format(num_preds, args.average))
+        #     args.average = num_preds
+        # if args.average == 0:
+        #     args.average = num_preds
+        # predictions['prediction'] = predictions[['prediction_{}'.format(i) for i in range(1,args.average+1)]].mean(1)
         MAE = mean_absolute_error(predictions['target'], predictions['prediction'])      
         MSE = mean_squared_error(predictions['target'], predictions['prediction'])
         slope, intercept, r_value, p_value, std_err = \

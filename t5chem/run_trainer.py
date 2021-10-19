@@ -10,13 +10,13 @@ import torch
 from transformers import (DataCollatorForLanguageModeling, T5Config,
                           T5ForConditionalGeneration, TrainingArguments)
 
-from .data_utils import (AccuracyMetrics, CalMSELoss, LineByLineTextDataset,
+from data_utils import (AccuracyMetrics, CalMSELoss, LineByLineTextDataset,
                          T5ChemTasks, TaskPrefixDataset, TaskSettings,
                          data_collator)
-from .model import T5ForProperty
-from .tokenizers import (AtomTokenizer, MolTokenizer, SelfiesTokenizer,
+from model import T5ForProperty
+from mol_tokenizers import (AtomTokenizer, MolTokenizer, SelfiesTokenizer,
                          SimpleTokenizer)
-from .trainer import EarlyStopTrainer
+from trainer import EarlyStopTrainer
 
 tokenizer_map: Dict[str, MolTokenizer] = {
     'simple': SimpleTokenizer,  # type: ignore
@@ -77,19 +77,9 @@ def add_args(parser):
         type=int,
         help="Batch size for training and validation.",
     )
-    parser.add_argument(
-        "--log_steps",
-        default=500,
-        type=int,
-        help="Number of update steps between two logs.",
-    )
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    add_args(parser)
-    args = parser.parse_args()
-
+def train(args):
     print(args)
     torch.cuda.manual_seed(args.random_seed)
     np.random.seed(args.random_seed)
@@ -114,7 +104,7 @@ def main():
                 head_type = task.output_layer,
             )
         if not hasattr(model.config, 'tokenizer'):
-            logging.warn("No tokenizer type detected, will use SimpleToenizer as default")
+            logging.warning("No tokenizer type detected, will use SimpleTokenizer as default")
         tokenizer_type = getattr(model.config, "tokenizer", 'simple')
         vocab_path = os.path.join(args.pretrain, 'vocab.pt')
         if not os.path.isfile(vocab_path):
@@ -123,7 +113,7 @@ def main():
                 raise ValueError(
                         "Can't find a vocabulary file at path '{}'.".format(args.pretrain)
                     )
-        tokenizer = tokenizer_map[tokenizer_type](vocab_path)
+        tokenizer = tokenizer_map[tokenizer_type](vocab_file=vocab_path)
         model.config.tokenizer = tokenizer_type # type: ignore
         model.config.task_type = args.task_type # type: ignore
     else:
@@ -131,12 +121,12 @@ def main():
             warn_msg = "This model is trained from scratch, but no \
                 tokenizer type is specified, will use simple tokenizer \
                 as default for this training."
-            logging.warn(warn_msg)
+            logging.warning(warn_msg)
             args.tokenizer = 'simple'
         assert args.tokenizer in ('simple', 'atom', 'selfies'), \
             "{} tokenizer is not supported."
-        vocab_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), args.tokenizer+'.pt')
-        tokenizer = tokenizer_map[args.tokenizer](vocab_path)
+        vocab_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vocab/'+args.tokenizer+'.pt')
+        tokenizer = tokenizer_map[args.tokenizer](vocab_file=vocab_path)
         config = T5Config(
             vocab_size=len(tokenizer),
             pad_token_id=tokenizer.pad_token_id,
@@ -178,10 +168,10 @@ def main():
         data_collator_padded = partial(
             data_collator, pad_token_id=tokenizer.pad_token_id)
 
-    do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
-    if do_eval:
-        eval_strategy = "steps"
-        if args.task_type == 'pretrain':
+    if args.task_type == 'pretrain':
+        do_eval = os.path.exists(os.path.join(args.data_dir, 'val.txt'))
+        if do_eval:
+            eval_strategy = "steps"
             eval_iter = LineByLineTextDataset(
                 tokenizer=tokenizer, 
                 file_path=os.path.join(args.data_dir,'val.txt'),
@@ -189,6 +179,12 @@ def main():
                 prefix=task.prefix,
             )
         else:
+            eval_strategy = "no"
+            eval_iter = None
+    else:
+        do_eval = os.path.exists(os.path.join(args.data_dir, 'val.source'))
+        if do_eval:
+            eval_strategy = "steps"
             eval_iter = TaskPrefixDataset(
                 tokenizer, 
                 data_dir=args.data_dir,
@@ -197,12 +193,15 @@ def main():
                 max_target_length=task.max_target_length,
                 type_path="val"
             )
-    else:
-        eval_strategy = "no"
-        eval_iter = None
+        else:
+            eval_strategy = "no"
+            eval_iter = None
 
     if task.output_layer == 'regression':
         compute_metrics = CalMSELoss
+    elif args.task_type == 'pretrain':
+        compute_metrics = None  
+        # We don't want any extra metrics for faster pretraining
     else:
         compute_metrics = AccuracyMetrics
 
@@ -237,4 +236,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    add_args(parser)
+    args = parser.parse_args()
+    train(args)

@@ -46,16 +46,16 @@ class T5ForProperty(T5ForConditionalGeneration):
                 ]
         for i in range(n_layer):
             lm_head_layers.extend(unit_layer)
-        if not head_type:
+        if not self.head_type:
             pass
-        elif head_type == "classification":
+        elif self.head_type == "classification":
             num_classes = num_classes if num_classes else getattr(config, "num_classes", 500)
             lm_head_layers.extend([
                 nn.Linear(config.d_model, num_classes)
                 ])
             self.config.num_classes = num_classes # type: ignore
         else:
-            assert head_type == "regression", \
+            assert self.head_type == "regression", \
                 "Only `classification` or `regression` are currently supported for output layer"
             lm_head_layers.extend([
                 nn.Linear(config.d_model, 2),
@@ -63,7 +63,7 @@ class T5ForProperty(T5ForConditionalGeneration):
                 ])
         self.set_output_embeddings(nn.Sequential(*lm_head_layers))
         self.config.tie_word_embeddings = False
-        self.config.head_type = head_type # type: ignore
+        self.config.head_type = self.head_type # type: ignore
         self.config.n_layer = n_layer # type: ignore
 
     def forward(
@@ -177,8 +177,8 @@ class T5ForProperty(T5ForConditionalGeneration):
                 loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
                 labels = labels.long()
                 loss = loss_fct(lm_logits, labels.view(-1))
-            else:
                 lm_logits = torch.argmax(lm_logits, axis=-1)
+            else:
                 loss_fct = nn.KLDivLoss(reduction='batchmean')
                 smoothed_label = torch.stack([(100-labels), labels], dim=1)/100
                 loss = loss_fct(lm_logits, smoothed_label.view(-1,2))

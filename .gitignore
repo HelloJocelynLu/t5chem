@@ -39,3 +39,7 @@ nosetests.xml
 /data/
 /models/
 /runs/
+*.log
+*.out
+*.sh
+*.sbatch
