@@ -36,10 +36,3 @@ nosetests.xml
 .pydevproject
 
 # exclude data from source control by default, will compress and publish later when ready
-/data/
-/models/
-/runs/
-*.log
-*.out
-*.sh
-*.sbatch

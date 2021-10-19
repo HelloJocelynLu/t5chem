@@ -36,6 +36,13 @@ def add_args(parser):
         help="The file name for prediction.",
     )
     parser.add_argument(
+        "--prefix",
+        default='',
+        type=str,
+        help="When provided, use it instead of read from trained model. (Especially useful when trained on a mixed\
+            dataset, but want to test on seperate tasks)",
+    )
+    parser.add_argument(
         "--num_beams",
         default=10,
         type=int,
@@ -80,7 +87,7 @@ def predict(args):
         base = "test"
 
     testset = TaskPrefixDataset(tokenizer, data_dir=args.data_dir,
-                                    prefix=task.prefix,
+                                    prefix=args.prefix or task.prefix,
                                     max_source_length=task.max_source_length,
                                     max_target_length=task.max_target_length,
                                     separate_vocab=(task.output_layer != 'seq2seq'),
