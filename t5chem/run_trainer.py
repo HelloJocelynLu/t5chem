@@ -39,6 +39,13 @@ def add_args(parser):
         help="The output directory where the model predictions and checkpoints will be written.",
     )
     parser.add_argument(
+        "--task_type",
+        type=str,
+        required=True,
+        help="Task type to use. ('product', 'reactants', 'reagents', \
+            'regression', 'classification', 'pretrain', 'mixed')",
+    )
+    parser.add_argument(
         "--pretrain",
         default='',
         help="Path to a pretrained model. If not given, we will train from scratch",
@@ -47,12 +54,6 @@ def add_args(parser):
         "--vocab",
         default='',
         help="Vocabulary file to load.",
-    )
-    parser.add_argument(
-        "--task_type",
-        default='product',
-        help="Task type to use. ('product', 'reactants', 'reagents', \
-            'regression', 'classification', 'pretrain', 'mixed')",
     )
     parser.add_argument(
         "--tokenizer",
@@ -70,6 +71,12 @@ def add_args(parser):
         default=100,
         type=int,
         help="Number of epochs for training.",
+    )
+    parser.add_argument(
+        "--log_step",
+        default=5000,
+        type=int,
+        help="Logging after every log_step",
     )
     parser.add_argument(
         "--batch_size",
@@ -92,7 +99,8 @@ def train(args):
     torch.backends.cudnn.deterministic = True
 
     assert args.task_type in T5ChemTasks, \
-        "only {} are currenly supported".format(tuple(T5ChemTasks.keys()))
+        "only {} are currenly supported, but got {}".\
+            format(tuple(T5ChemTasks.keys()), args.task_type)
     task: TaskSettings = T5ChemTasks[args.task_type]
 
     if args.pretrain: # retrieve information from pretrained model
@@ -163,7 +171,8 @@ def train(args):
             prefix=task.prefix,
             max_source_length=task.max_source_length,
             max_target_length=task.max_target_length,
-            type_path="train"
+            separate_vocab=(task.output_layer != 'seq2seq'),
+            type_path="train",
         )
         data_collator_padded = partial(
             data_collator, pad_token_id=tokenizer.pad_token_id)
@@ -191,7 +200,8 @@ def train(args):
                 prefix=task.prefix,
                 max_source_length=task.max_source_length,
                 max_target_length=task.max_target_length,
-                type_path="val"
+                separate_vocab=(task.output_layer != 'seq2seq'),
+                type_path="val",
             )
         else:
             eval_strategy = "no"
@@ -212,7 +222,7 @@ def train(args):
         evaluation_strategy=eval_strategy,
         num_train_epochs=args.num_epoch,
         per_device_train_batch_size=args.batch_size,
-        logging_steps=1000,
+        logging_steps=args.log_step,
         per_device_eval_batch_size=args.batch_size,
         save_steps=10000,
         save_total_limit=5,

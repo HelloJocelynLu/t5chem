@@ -21,7 +21,7 @@ class TaskSettings(NamedTuple):
 T5ChemTasks: Dict[str, TaskSettings] = {
     'product': TaskSettings('Product:', 400, 200, 'seq2seq'),
     'reactants': TaskSettings('Reactants:', 200, 300, 'seq2seq'),
-    'reagents:': TaskSettings('Reagents:', 400, 200, 'seq2seq'),
+    'reagents': TaskSettings('Reagents:', 400, 200, 'seq2seq'),
     'classification': TaskSettings('Classification:', 500, 1, 'classification'),
     'regression': TaskSettings('Yield:', 500, 1, 'regression'),
     'pretrain': TaskSettings('Fill-Mask:', 400, 200, 'seq2seq'),
@@ -148,7 +148,7 @@ def CalMSELoss(model_output: PredictionOutput) -> Dict[str, float]:
     return {'mse_loss': loss}
 
 def AccuracyMetrics(model_output: PredictionOutput) -> Dict[str, float]:
-    predictions: np.ndarray = model_output.predictions # type: ignore
-    label_ids: np.ndarray = model_output.label_ids.reshape(-1).astype(np.int64) # type: ignore
-    correct: int = np.sum(predictions == label_ids)
+    label_ids: np.ndarray = model_output.label_ids # type: ignore
+    predictions: np.ndarray = model_output.predictions.reshape(-1, label_ids.shape[1]) # type: ignore
+    correct: int = np.all(predictions==label_ids, 1).sum()
     return {'accuracy': correct/len(predictions)}

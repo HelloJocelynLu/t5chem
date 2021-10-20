@@ -2,7 +2,7 @@
 """
 from argparse import ArgumentParser
 
-from __version__ import __version__
+from .__version__ import __version__
 from .run_prediction import add_args as pred_args
 from .run_prediction import predict
 from .run_trainer import add_args as train_args
@@ -24,7 +24,7 @@ def main(argv=None) -> int:
     common = ArgumentParser(add_help=False)  # common subcommand arguments
     _execute(subparsers, common)
     args = parser.parse_args(argv)    
-    if not args.command:
+    if not hasattr(args, "command") or not args.command:
         # No sucommand was specified.
         parser.print_help()
         raise SystemExit(1)
