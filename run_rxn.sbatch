@@ -1,0 +1,1 @@
+t5chem train --data_dir ../t5chem_data/USPTO_MT_X5/mixed/ --output_dir models/USPTO_MT_X5/ --pretrain models/pretrain/simple/  --task_type mixed --num_epoch 30
