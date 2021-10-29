@@ -1,0 +1,36 @@
+***** Running training *****
+  Num examples = 1745388
+  Num Epochs = 10
+  Instantaneous batch size per device = 32
+  Total train batch size (w. parallel, distributed & accumulation) = 32
+  Gradient Accumulation steps = 1
+  Total optimization steps = 545440
+
+Training completed. Do not forget to share your model on huggingface.co/models =)
+
+Saving model checkpoint to models/USPTO_MT_X5/
+Configuration saved in models/USPTO_MT_X5/config.json
+Namespace(batch_size=32, command=<function train at 0x1527b73888b0>, data_dir='../t5chem_data/USPTO_MT_X5/mixed/', log_step=5000, num_epoch=10, output_dir='models/USPTO_MT_X5/', pretrain='models/USPTO_MT_X5/best_cp-1305000/', random_seed=8570, task_type='mixed', tokenizer='', vocab='')
+{'train_runtime': 63662.889, 'train_samples_per_second': 274.161, 'train_steps_per_second': 8.568, 'train_loss': 0.09417386257812822, 'epoch': 10.0}
+Namespace(batch_size=32, command=<function train at 0x1527b73888b0>, data_dir='../t5chem_data/USPTO_MT_X5/mixed/', log_step=5000, num_epoch=10, output_dir='models/USPTO_MT_X5/', pretrain='models/USPTO_MT_X5/best_cp-1305000/', random_seed=8570, task_type='mixed', tokenizer='', vocab='')
+
+Forward:
+Top-1: 96.9% || Invalid 0.07%
+Top-2: 98.5% || Invalid 1.15%
+Top-3: 99.1% || Invalid 2.40%
+Top-4: 99.3% || Invalid 3.37%
+Top-5: 99.4% || Invalid 4.29%
+
+Reactants:
+Top-1: 70.8% || Invalid 0.04%
+Top-2: 85.5% || Invalid 0.13%
+Top-3: 90.9% || Invalid 0.23%
+Top-4: 93.5% || Invalid 0.35%
+Top-5: 95.2% || Invalid 0.45%
+
+Reagents:
+Top-1: 21.3% || Invalid 0.04%
+Top-2: 29.2% || Invalid 0.07%
+Top-3: 33.6% || Invalid 0.08%
+Top-4: 36.7% || Invalid 0.09%
+Top-5: 38.9% || Invalid 0.11%
