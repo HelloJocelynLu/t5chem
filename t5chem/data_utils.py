@@ -144,7 +144,7 @@ def data_collator(batch: List[BatchEncoding], pad_token_id: int) -> Dict[str, to
 def CalMSELoss(model_output: PredictionOutput) -> Dict[str, float]:
     predictions: np.ndarray = model_output.predictions # type: ignore
     label_ids: np.ndarray = model_output.label_ids.squeeze() # type: ignore
-    loss: float = ((predictions - label_ids)**2).mean()
+    loss: float = ((predictions - label_ids)**2).mean().item()
     return {'mse_loss': loss}
 
 def AccuracyMetrics(model_output: PredictionOutput) -> Dict[str, float]:
