@@ -29,7 +29,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
         source_files: Optional[Union[str, List[str]]]=None,
         unk_token: str='<unk>',
         bos_token: str='<s>',
-        pad_token: str="<blank>",
+        pad_token: str="<pad>",
         eos_token: str='</s>',
         mask_token: str='<mask>',
         max_size: int=1000,
@@ -51,10 +51,10 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
             )
         if self.vocab:
             extra_to_add: int = max_size - len(self.vocab)
-            cur_added_len: int = len(task_prefixs)
+            cur_added_len: int = len(task_prefixs) + 9 # placeholder for smiles tokens
             for i in range(cur_added_len, extra_to_add):
-                task_prefixs.append('<extra_id_{}>'.format(str(i)))
-            self.add_tokens(task_prefixs+['>'], special_tokens=True)
+                task_prefixs.append('<extra_task_{}>'.format(str(i)))
+            self.add_tokens(['<extra_token_'+str(i)+'>' for i in range(9)]+task_prefixs+['>'], special_tokens=True)
             self.unique_no_split_tokens = sorted(
                 set(self.unique_no_split_tokens).union(set(self.all_special_tokens))
             )
@@ -198,7 +198,7 @@ class SimpleTokenizer(MolTokenizer):
     This tokenizer inherits from :class:`~transformers.PreTrainedTokenizer` which contains most of the methods. Users
     should refer to the superclass for more information regarding methods.
     Args:
-        vocab_file (:obj:`string`, `optional`, defaults to ''):
+        vocab_file (:obj:`string`):
             File containing the vocabulary (torchtext.vocab.Vocab class).
         source_files (:obj:`string`, `optional`, defaults to ''):
             File containing source data files, vocabulary would be built based on the source file(s).
@@ -207,7 +207,7 @@ class SimpleTokenizer(MolTokenizer):
             token instead.
         bos_token (:obj:`string`, `optional`, defaults to '<s>'):
             string: a beginning of sentence token.
-        pad_token (:obj:`string`, `optional`, defaults to "<blank>"):
+        pad_token (:obj:`string`, `optional`, defaults to "<pad>"):
             The token used for padding, for example when batching sequences of different lengths.
         eos_token (:obj:`string`, `optional`, defaults to '</s>'):
             string: an end of sentence token.
@@ -216,8 +216,8 @@ class SimpleTokenizer(MolTokenizer):
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
-    def __init__(self, max_size=100, **kwargs) -> None:
-        super().__init__(max_size=max_size, **kwargs)
+    def __init__(self, vocab_file, max_size=100, **kwargs) -> None:
+        super().__init__(vocab_file=vocab_file, max_size=max_size, **kwargs)
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 
         return list(text)
@@ -228,7 +228,7 @@ class AtomTokenizer(MolTokenizer):
     This tokenizer inherits from :class:`~transformers.PreTrainedTokenizer` which contains most of the methods. Users
     should refer to the superclass for more information regarding methods.
     Args:
-        vocab_file (:obj:`string`, `optional`, defaults to ''):
+        vocab_file (:obj:`string`):
             File containing the vocabulary (torchtext.vocab.Vocab class).
         source_files (:obj:`string`, `optional`, defaults to ''):
             File containing source data files, vocabulary would be built based on the source file(s).
@@ -237,7 +237,7 @@ class AtomTokenizer(MolTokenizer):
             token instead.
         bos_token (:obj:`string`, `optional`, defaults to '<s>'):
             string: a beginning of sentence token.
-        pad_token (:obj:`string`, `optional`, defaults to "<blank>"):
+        pad_token (:obj:`string`, `optional`, defaults to "<pad>"):
             The token used for padding, for example when batching sequences of different lengths.
         eos_token (:obj:`string`, `optional`, defaults to '</s>'):
             string: an end of sentence token.
@@ -246,8 +246,8 @@ class AtomTokenizer(MolTokenizer):
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
-    def __init__(self, max_size=1000, **kwargs) -> None:
-        super().__init__(max_size=max_size, **kwargs)
+    def __init__(self, vocab_file, max_size=1000, **kwargs) -> None:
+        super().__init__(vocab_file=vocab_file, max_size=max_size, **kwargs)
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 
         tokens: List[str] = [token for token in regex.findall(text)]
@@ -260,7 +260,7 @@ class SelfiesTokenizer(MolTokenizer):
     This tokenizer inherits from :class:`~transformers.PreTrainedTokenizer` which contains most of the methods. Users
     should refer to the superclass for more information regarding methods.
     Args:
-        vocab_file (:obj:`string`, `optional`, defaults to ''):
+        vocab_file (:obj:`string`):
             File containing the vocabulary (torchtext.vocab.Vocab class).
         source_files (:obj:`string`, `optional`, defaults to ''):
             File containing source data files, vocabulary would be built based on the source file(s).
@@ -269,7 +269,7 @@ class SelfiesTokenizer(MolTokenizer):
             token instead.
         bos_token (:obj:`string`, `optional`, defaults to '<s>'):
             string: a beginning of sentence token.
-        pad_token (:obj:`string`, `optional`, defaults to "<blank>"):
+        pad_token (:obj:`string`, `optional`, defaults to "<pad>"):
             The token used for padding, for example when batching sequences of different lengths.
         eos_token (:obj:`string`, `optional`, defaults to '</s>'):
             string: an end of sentence token.
@@ -278,8 +278,8 @@ class SelfiesTokenizer(MolTokenizer):
         **kwargs：
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
-    def __init__(self, max_size=1000, **kwargs) -> None:
-        super().__init__(max_size=max_size, **kwargs)
+    def __init__(self, vocab_file, max_size=1000, **kwargs) -> None:
+        super().__init__(vocab_file=vocab_file, max_size=max_size, **kwargs)
         assert is_selfies_available, "You need to install selfies package to use SelfiesTokenizer"
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 

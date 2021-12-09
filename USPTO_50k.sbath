@@ -1,0 +1,2 @@
+t5chem train --data_dir ../t5chem_data/USPTO_50k/ --output_dir models/USPTO_50k/ --pretrain models/pretrain/simple --task_type reactants
+t5chem predict --data_dir ../t5chem_data/USPTO_50k/ --model_dir models/USPTO_50k/

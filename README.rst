@@ -9,7 +9,7 @@ A Unified Deep Learning Model for Multi-task Reaction Predictions.
 
 It is built on `huggingface transformers`_ -- T5 model with some modifications.
 
-.. image:: cover.pdf
+.. image:: cover.png
 
 .. _huggingface transformers: https://github.com/huggingface/transformers
 

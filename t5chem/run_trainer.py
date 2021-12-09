@@ -84,6 +84,11 @@ def add_args(parser):
         type=int,
         help="Batch size for training and validation.",
     )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        help="The number of classes in classification task. Only used when task_type is Classification",
+    )
 
 
 def train(args):
@@ -150,7 +155,7 @@ def train(args):
         if task.output_layer == 'seq2seq':
             model = T5ForConditionalGeneration(config)
         else:
-            model = T5ForProperty(config, head_type=task.output_layer)
+            model = T5ForProperty(config, head_type=task.output_layer, num_classes=args.num_classes)
 
     os.makedirs(args.output_dir, exist_ok=True)
     tokenizer.save_vocabulary(os.path.join(args.output_dir, 'vocab.pt'))
