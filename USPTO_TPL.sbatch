@@ -1,2 +1,0 @@
-t5chem train --data_dir ../t5chem_data/USPTO_MT/Classification/ --output_dir models/USPTO_TPL/ --pretrain models/pretrain/simple --task_type classification
-t5chem predict --data_dir ../t5chem_data/USPTO_MT/Classification/ --model_dir models/USPTO_TPL/
