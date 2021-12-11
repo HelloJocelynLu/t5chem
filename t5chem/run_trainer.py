@@ -85,6 +85,12 @@ def add_args(parser):
         help="Batch size for training and validation.",
     )
     parser.add_argument(
+        "--init_lr",
+        default=5e-4,
+        type=float,
+        help="The initial leanring rate for model training",
+    )
+    parser.add_argument(
         "--num_classes",
         type=int,
         help="The number of classes in classification task. Only used when task_type is Classification",
@@ -231,7 +237,7 @@ def train(args):
         per_device_eval_batch_size=args.batch_size,
         save_steps=10000,
         save_total_limit=5,
-        learning_rate=5e-4,
+        learning_rate=args.init_lr,
         prediction_loss_only=(compute_metrics is None),
     )
 

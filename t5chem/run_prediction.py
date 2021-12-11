@@ -117,7 +117,7 @@ def predict(args):
 
         with open(os.path.join(args.data_dir, base+".target")) as rf:
             for line in rf:
-                targets.append(line.strip()[:task.max_target_length])
+                targets.append(standize(line.strip()[:task.max_target_length]))
     
         predictions = [[] for i in range(args.num_preds)]
         for batch in tqdm(test_loader, desc="prediction"):
