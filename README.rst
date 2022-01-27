@@ -27,28 +27,17 @@ Requirements
 
 Installation
 ------------
-**Install dependency that is not available from pip**
 
-RDKit is not directly available from pip, so you will need to install it by yourself. To install rdkit, using conda is recommended:
- .. code:: bash
+We recommend to install t5chem from source:
 
-   $ conda install -q -y -c conda-forge rdkit==2020.09.2 
-
-Then, to install T5Chem, we provide two methods:
-1. To install from source (with latest version):
+To install from source (with latest version):
 
  .. code:: bash
 
    $ git clone https://github.com/HelloJocelynLu/t5chem.git
-   $ cd EFGs/
+   $ cd t5chem/
    $ python setup.py install
    $ python setup.py test # optional, only works when you have pytest installed
-
-2. Install via pip
-
- .. code:: bash
-
-   $ pip install t5chem
 
 It should automatically handle dependencies for you.
 
@@ -85,6 +74,7 @@ Call as an API:
 
    from transformers import T5ForConditionalGeneration
    from t5chem import T5ForProperty, SimpleTokenizer
+   pretrain_path = "path/to/your/pretrained/model/"
    model = T5ForConditionalGeneration.from_pretrained(pretrain_path)    # for seq2seq tasks
    tokenizer = SimpleTokenizer(vocab_file=os.path.join(pretrain_path, 'vocab.pt'))
    inputs = tokenizer.encode("Product:COC(=O)c1cc(COc2ccc(-c3ccccc3OC)cc2)c(C)o1.C1CCOC1>>", return_tensors='pt')
@@ -98,9 +88,12 @@ Call as an API:
 
 We have Google Colab examples available! Feel free to try it out:
 
-- Call T5Chem via CLI (command line)
-- Use a pretrained model
-- Design your own project: predict molecular weights with different tokenization methods
+- Call T5Chem via CLI (command line) `Colab`_
+.. _Colab: https://colab.research.google.com/drive/13tJlJ5loLtws6u91shbSjuPoiA1fCSae?usp=sharing
+- Use a pretrained model `Colab`_
+.. _Colab: https://colab.research.google.com/drive/1xwz7c7q1SwwD5jEQKamo9TNCN1PKH8um?usp=sharing
+- Design your own project: predict molecular weights with different tokenization methods `Colab`_
+.. _Colab: https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing
 
 Compatibility
 -------------
