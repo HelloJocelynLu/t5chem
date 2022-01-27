@@ -33,7 +33,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
         eos_token: str='</s>',
         mask_token: str='<mask>',
         max_size: int=1000,
-        task_prefixs: List[str] =TASK_PREFIX,
+        task_prefixs: List[str]=[],
         **kwargs
     ) -> None:
         super().__init__(
@@ -44,6 +44,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
             mask_token=mask_token,
             **kwargs)
 
+        task_prefixs = TASK_PREFIX+task_prefixs
         self.create_vocab(
             vocab_file=vocab_file, 
             source_files=source_files, 
