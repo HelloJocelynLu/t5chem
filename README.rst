@@ -88,12 +88,11 @@ Call as an API:
 
 We have Google Colab examples available! Feel free to try it out:
 
-- Call T5Chem via CLI (command line) `Colab`_
-.. _Colab: https://colab.research.google.com/drive/13tJlJ5loLtws6u91shbSjuPoiA1fCSae?usp=sharing
-- Use a pretrained model `Colab`_
-.. _Colab: https://colab.research.google.com/drive/1xwz7c7q1SwwD5jEQKamo9TNCN1PKH8um?usp=sharing
-- Design your own project: predict molecular weights with different tokenization methods `Colab`_
-.. _Colab: https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing
+- Call T5Chem via CLI (command line) `Colab <https://colab.research.google.com/drive/13tJlJ5loLtws6u91shbSjuPoiA1fCSae?usp=sharing>`_
+
+- Use a pretrained model `Colab <https://colab.research.google.com/drive/1xwz7c7q1SwwD5jEQKamo9TNCN1PKH8um?usp=sharing>`_
+
+- Design your own project: predict molecular weights with different tokenization methods `Colab <https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing>`_
 
 Compatibility
 -------------
