@@ -13,24 +13,12 @@ It is built on `huggingface transformers`_ -- T5 model with some modifications.
 
 .. _huggingface transformers: https://github.com/huggingface/transformers
 
-Requirements
-------------
-.. code:: cfg
-
-   rdkit
-   transformers
-   scikit-learn
-   torchtext
-   scipy
-   tensorboard (optional)
-   selfies (optional)
-
 Installation
 ------------
 
-We recommend to install t5chem from source:
+T5Chem can be either installed via pip or from source. We recommend to install t5chem from source.
 
-To install from source (with latest version):
+1. To install from source (with latest version):
 
  .. code:: bash
 
@@ -40,6 +28,12 @@ To install from source (with latest version):
    $ python setup.py test # optional, only works when you have pytest installed
 
 It should automatically handle dependencies for you.
+
+2. To install via pip
+
+ .. code:: bash
+
+   $ pip install t5chem
 
 Usage
 -----
@@ -55,7 +49,7 @@ We have some sample data (a small subset from datasets used in paper) available 
 
 .. code:: bash
 
-   $ tar -xjvf sample_data.tar.bz2
+   $ tar -xjvf data/sample_data.tar.bz2
    $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --pretrain models/pretrain/simple/ --num_epoch 30
    $ t5chem predict --data_dir data/sample/product/ --model_dir model/
 
@@ -88,11 +82,11 @@ Call as an API:
 
 We have Google Colab examples available! Feel free to try it out:
 
-- Call T5Chem via CLI (command line) `Colab <https://colab.research.google.com/drive/13tJlJ5loLtws6u91shbSjuPoiA1fCSae?usp=sharing>`_
+- Call T5Chem via CLI (command line) `Colab <https://colab.research.google.com/drive/13tJlJ5loLtws6u91shbSjuPoiA1fCSae?usp=sharing>`__
 
-- Use a pretrained model `Colab <https://colab.research.google.com/drive/1xwz7c7q1SwwD5jEQKamo9TNCN1PKH8um?usp=sharing>`_
+- Use a pretrained model in python script `Colab <https://colab.research.google.com/drive/1xwz7c7q1SwwD5jEQKamo9TNCN1PKH8um?usp=sharing>`__
 
-- Design your own project: predict molecular weights with different tokenization methods `Colab <https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing>`_
+- Design your own project: predict molecular weights with different tokenization methods `Colab <https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing>`__
 
 Compatibility
 -------------
