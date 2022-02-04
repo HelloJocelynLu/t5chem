@@ -48,7 +48,7 @@ setup(
         "scipy>=1.6.0",
         "tensorboard>=2.6.0",
         "pandas>=1.2.4",
-        "rdkit-pypi<=2020.9.5.2",
+        "rdkit-pypi",
     ],
     
     classifiers=[
