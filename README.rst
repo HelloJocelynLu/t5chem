@@ -50,19 +50,13 @@ We have some sample data (a small subset from datasets used in paper) available 
 .. code:: bash
 
    $ tar -xjvf data/sample_data.tar.bz2
-   $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --pretrain models/pretrain/simple/ --num_epoch 30
-   $ t5chem predict --data_dir data/sample/product/ --model_dir model/
+   $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --num_epoch 30        # Train a model
+   $ t5chem predict --data_dir data/sample/product/ --model_dir model/      # test a trained model
 
-Note that we may not get a very good result (~70% top-1 accuracy) as we are only trained on a small dataset.
+These commands trained a T5Chem model from scratch and take ~13 mins in v100 GPU. It is recommended to use a prerained model rather than totally trained from scratch, you can download some trained models and more datasets `here <https://yzhang.hpc.nyu.edu/T5Chem/index.html>`__.
+Note that we may get a bad result (0.1% top-1 accuracy) as we are only trained on a small dataset and totally from scratch. (You will get ~70% top-1 accuracy if training from a pretrained model by using `--pretrain`.) A more detailed example training from pretrained weights and explanations for commonly used arguments can be find `here <https://yzhang.hpc.nyu.edu/T5Chem/tutorial.html>`__.
 
-Required auguments:
-
-- `data_dir`: The path to data directory, should contain `train.source`, `train.target` for training, and `test.source`, `test.target` for testing
-- `output_dir`: The directory to save trained model. Will generate four files: `vocab.pt` for vocabulary, `config.json` for model configuration, `pytorch_model.bin` for trained model weights and `training_args.bin` for training arguments.
-- `task_type`: task type. Currently we are supporting `product` (for forward reaction prediction), `reactants` (for single-step retrosynthesis), `reagents` (for reagents prediction), `regression` (to predict numeric values) and `classification` (to predict categorical values).
-- `model_dir`: The path to a trained model. (task type, tokenization method...etc can be inferred from saved model.
-
-Call as an API:
+Call as an API (Test a trained model):
 
 .. code:: python
 
