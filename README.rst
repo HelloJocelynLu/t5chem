@@ -96,3 +96,21 @@ Authors
 -------
 
 `t5chem` was written by `Jocelyn Lu <jl8570@nyu.edu>`_.
+
+Reference
+----------
+
+Jieyu Lu and Yingkai Zhang., Unified Deep Learning Model for Multitask Reaction Predictions with Explanation. *J. Chem. Inf. Model.*, **62**. 1376–1387 (2022) https://pubs.acs.org/doi/abs/10.1021/acs.jcim.1c01467
+
+.. code:: bash
+
+      @article{lu2022unified,
+      title={Unified Deep Learning Model for Multitask Reaction Predictions with Explanation},
+      author={Lu, Jieyu and Zhang, Yingkai},
+      journal={Journal of Chemical Information and Modeling},
+      year={2022},
+      publisher={ACS Publications}
+      }
+
+Other projects in Zhang's Lab:
+https://www.nyu.edu/projects/yzhang/IMA/
