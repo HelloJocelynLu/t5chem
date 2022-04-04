@@ -10,13 +10,13 @@ import torch
 from transformers import (DataCollatorForLanguageModeling, T5Config,
                           T5ForConditionalGeneration, TrainingArguments)
 
-from .data_utils import (AccuracyMetrics, CalMSELoss, LineByLineTextDataset,
+from data_utils import (AccuracyMetrics, CalMSELoss, LineByLineTextDataset,
                         T5ChemTasks, TaskPrefixDataset, TaskSettings,
                         data_collator)
-from .model import T5ForProperty
-from .mol_tokenizers import (AtomTokenizer, MolTokenizer, SelfiesTokenizer,
+from model import T5ForProperty
+from mol_tokenizers import (AtomTokenizer, MolTokenizer, SelfiesTokenizer,
                             SimpleTokenizer)
-from .trainer import EarlyStopTrainer
+from trainer import EarlyStopTrainer
 
 tokenizer_map: Dict[str, MolTokenizer] = {
     'simple': SimpleTokenizer,  # type: ignore

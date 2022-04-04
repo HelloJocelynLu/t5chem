@@ -11,10 +11,10 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5Config, T5ForConditionalGeneration
 
-from .data_utils import T5ChemTasks, TaskPrefixDataset, data_collator
-from .evaluation import get_rank, standize
-from .model import T5ForProperty
-from .mol_tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
+from data_utils import T5ChemTasks, TaskPrefixDataset, data_collator
+from evaluation import get_rank, standize
+from model import T5ForProperty
+from mol_tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
 
 
 def add_args(parser):

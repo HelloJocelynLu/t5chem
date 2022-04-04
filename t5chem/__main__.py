@@ -2,11 +2,11 @@
 """
 from argparse import ArgumentParser
 
-from .__version__ import __version__
-from .run_prediction import add_args as pred_args
-from .run_prediction import predict
-from .run_trainer import add_args as train_args
-from .run_trainer import train
+from __version__ import __version__
+from run_prediction import add_args as pred_args
+from run_prediction import predict
+from run_trainer import add_args as train_args
+from run_trainer import train
 
 __all__ = "main",
  
