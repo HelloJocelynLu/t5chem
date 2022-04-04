@@ -1,6 +1,6 @@
 """t5chem - A Unified Deep Learning Model for Multi-task Reaction Predictions"""
 from .__version__ import __version__
-from .data_utils import TaskPrefixDataset, data_collator
+from .data_utils import LineByLineTextDataset, TaskPrefixDataset, data_collator
 from .model import T5ForProperty
 from .mol_tokenizers import (AtomTokenizer, MolTokenizer, SelfiesTokenizer,
                              SimpleTokenizer)
