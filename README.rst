@@ -13,6 +13,11 @@ It is built on `huggingface transformers`_ -- T5 model with some modifications.
 
 .. _huggingface transformers: https://github.com/huggingface/transformers
 
+Docker
+------
+We have a docker image available `here <https://hub.docker.com/repository/docker/hellojocelynlu/t5chem>`__, feel free to try it out!
+
+
 Installation
 ------------
 
