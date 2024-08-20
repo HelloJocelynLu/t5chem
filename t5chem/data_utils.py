@@ -10,6 +10,13 @@ from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizer
 from transformers.trainer_utils import PredictionOutput
 
+TOKENS = {"mask_token" : "<mask>",
+            "unk_token" : "<unk>",
+            "pad_token" : "<pad>",
+            "bos_token" : "<pad>",
+            "sos_token" : "<pad>",
+            "eos_token" : "</s>"}
+DEFAULT_VOCAB = os.path.join(os.getcwd(), "t5chem","vocab","tokenizer.json")
 
 class TaskSettings(NamedTuple):
     prefix: str
@@ -47,13 +54,15 @@ class LineByLineTextDataset(Dataset):
         
     def __getitem__(self, idx: int) -> torch.Tensor:
         line: str = linecache.getline(self._file_path, idx + 1).strip()
-        sample: BatchEncoding = self.tokenizer(
+        sample = self.tokenizer(
                         self.prefix+line,
                         max_length=self.max_length,
                         padding="do_not_pad",
                         truncation=True,
                         return_tensors='pt',
                     )
+        # Assert sample is BatchEncoding
+        assert isinstance(sample, BatchEncoding) # Should be a batchEncoding.
         return sample['input_ids'].squeeze(0)
       
     def __len__(self) -> int:

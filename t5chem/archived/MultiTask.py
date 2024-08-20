@@ -362,7 +362,7 @@ if __name__ == "__main__":
     model = T5ForMultiTask("models/pretrain/simple/", seq2seqW=1.5)
     tokenizer = SimpleTokenizer(vocab_file="models/pretrain/simple/vocab.pt")
     os.makedirs("models/MultiTaskTrainw1.5/", exist_ok=True)
-    tokenizer.save_vocabulary(os.path.join("models/MultiTaskTrainw1.5/", 'vocab.pt'))
+    tokenizer.save_pretrained(os.path.join("models/MultiTaskTrainw1.5/"))
     dataset = MultiTaskDataset(
         tokenizer, 
         data_dir="../t5chem_data/USPTO_MT/",
@@ -388,7 +388,7 @@ if __name__ == "__main__":
         output_dir="models/MultiTaskTrainw1.5/",
         overwrite_output_dir=True,
         do_train=True,
-        evaluation_strategy=eval_strategy,
+        eval_strategy=eval_strategy,
         num_train_epochs=100,
         per_device_train_batch_size=32,
         logging_steps=5000,
