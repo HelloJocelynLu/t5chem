@@ -63,7 +63,7 @@ class EarlyStopTrainer(Trainer):
 
         model = self.model
 
-        batch_size = dataloader.batch_size
+        batch_size = self._train_batch_size
         num_examples = self.num_examples(dataloader)
         losses_host = None
         preds_host = None

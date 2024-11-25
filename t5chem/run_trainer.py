@@ -115,6 +115,8 @@ def train(args):
             model = T5ForProperty.from_pretrained(
                 args.pretrain, 
                 head_type = task.output_layer,
+                ignore_mismatched_sizes = True,
+                num_classes = args.num_classes,
             )
         if not hasattr(model.config, 'tokenizer'):
             logging.warning("No tokenizer type detected, will use SimpleTokenizer as default")

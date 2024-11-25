@@ -244,7 +244,7 @@ class AtomTokenizer(MolTokenizer):
             string: an end of sentence token.
         max_size: (:obj:`int`, `optional`, defaults to 1000):
             The final vocabulary size. `None` for no limit.
-        **kwargs：
+        **kwargs:
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
     def __init__(self, vocab_file, max_size=1000, **kwargs) -> None:
@@ -276,7 +276,7 @@ class SelfiesTokenizer(MolTokenizer):
             string: an end of sentence token.
         max_size: (:obj:`int`, `optional`, defaults to 1000):
             The final vocabulary size. `None` for no limit.
-        **kwargs：
+        **kwargs:
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
     def __init__(self, vocab_file, max_size=1000, **kwargs) -> None:

@@ -33,38 +33,42 @@ class T5ForProperty(T5ForConditionalGeneration):
         self, 
         config: T5Config, 
         head_type: Optional[str]=None, 
-        n_layer: Optional[int]=None, 
+        # n_layer: Optional[int]=None, 
         num_classes: Optional[int]=None,
         ) -> None:
         super().__init__(config)
         self.head_type = head_type if head_type else getattr(config, "head_type", None)
-        n_layer = n_layer if n_layer else getattr(config, "n_layer", 0)
-        lm_head_layers: List[nn.Module] = []
-        unit_layer: List[nn.Module] = [
-                nn.Linear(config.d_model, config.d_model),
-                nn.ReLU(),
-                ]
-        for i in range(n_layer):
-            lm_head_layers.extend(unit_layer)
+        # n_layer = n_layer if n_layer else getattr(config, "n_layer", 0)
+        # lm_head_layers: List[nn.Module] = []
+        # unit_layer: List[nn.Module] = [
+        #         nn.Linear(config.d_model, config.d_model),
+        #         nn.ReLU(),
+        #         ]
+        # for i in range(n_layer):
+        #     lm_head_layers.extend(unit_layer)
         if not self.head_type:
-            pass
+            return
         elif self.head_type == "classification":
             num_classes = num_classes if num_classes else getattr(config, "num_classes", 500)
-            lm_head_layers.extend([
-                nn.Linear(config.d_model, num_classes)
-                ])
+            lm_head_layer = nn.Linear(config.d_model, num_classes)
+            # lm_head_layers.extend([
+            #     nn.Linear(config.d_model, num_classes)
+            #     ])
             self.config.num_classes = num_classes # type: ignore
         else:
             assert self.head_type == "regression", \
                 "Only `classification` or `regression` are currently supported for output layer"
-            lm_head_layers.extend([
-                nn.Linear(config.d_model, 2),
-                nn.LogSoftmax(dim=-1)
-                ])
-        self.set_output_embeddings(nn.Sequential(*lm_head_layers))
+            lm_head_layer = nn.Linear(config.d_model, 2)
+            # lm_head_layers.extend([
+            #     nn.Linear(config.d_model, 2),
+            #     nn.LogSoftmax(dim=-1)
+            #     ])
+        # self.set_output_embeddings(nn.Sequential(*lm_head_layers))
+        self.set_output_embeddings(lm_head_layer)
         self.config.tie_word_embeddings = False
         self.config.head_type = self.head_type # type: ignore
-        self.config.n_layer = n_layer # type: ignore
+        # self.config.n_layer = n_layer # type: ignore
+        # print("initialized T5ForProperty")
 
     def forward(
         self,
@@ -165,7 +169,7 @@ class T5ForProperty(T5ForConditionalGeneration):
             # Rescale output before projecting on vocab
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
             sequence_output = sequence_output * (self.model_dim ** -0.5)
-        if self.lm_head:
+        if self.head_type:
             lm_logits = self.lm_head(sequence_output.view(sequence_output.size()[0], -1))
         else:
             lm_logits = sequence_output.view(sequence_output.size()[0], -1)
@@ -181,6 +185,7 @@ class T5ForProperty(T5ForConditionalGeneration):
             else:
                 loss_fct = nn.KLDivLoss(reduction='batchmean')
                 smoothed_label = torch.stack([(100-labels), labels], dim=1)/100
+                lm_logits = nn.functional.log_softmax(lm_logits, dim=-1)
                 loss = loss_fct(lm_logits, smoothed_label.view(-1,2))
                 lm_logits = torch.exp(lm_logits[:,-1])*100
 
