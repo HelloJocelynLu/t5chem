@@ -3,10 +3,9 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections import Counter
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 
 import torch
-from torchtext.vocab import Vocab
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
@@ -14,9 +13,44 @@ is_selfies_available: bool = False
 if importlib.util.find_spec("selfies"):
     from selfies import split_selfies
     is_selfies_available = True
-pattern: str = "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
+pattern: str = r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
 regex: re.Pattern = re.compile(pattern)
 TASK_PREFIX: List[str] = ['Yield:', 'Product:', 'Fill-Mask:', 'Classification:', 'Reagents:', 'Reactants:']
+
+
+class Vocab:
+    """Simple vocabulary class to replace torchtext.vocab.Vocab"""
+    def __init__(
+        self,
+        tokens: List[str]
+    ):
+        """Initialize vocabulary from a list of tokens
+        
+        Args:
+            tokens: List of tokens in desired order
+        """
+        self.itos = tokens  # index to string
+        self.stoi = {s: i for i, s in enumerate(tokens)}  # string to index
+
+    def __len__(self) -> int:
+        return len(self.itos)
+
+    def save(self, path: str) -> None:
+        """Save vocabulary to a text file, one token per line"""
+        with open(path, 'w', encoding='utf-8') as f:
+            for token in self.itos:
+                f.write(f"{token}\n")
+
+    @classmethod
+    def load(cls, path: str) -> 'Vocab':
+        """Load vocabulary from a text file"""
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Vocabulary file not found at {path}")
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            tokens = [line.strip() for line in f]
+        return cls(tokens)
+
 
 class MolTokenizer(ABC, PreTrainedTokenizer):
     r"""
@@ -36,6 +70,9 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
         task_prefixs: List[str]=[],
         **kwargs
     ) -> None:
+
+        task_prefixs = TASK_PREFIX+task_prefixs
+        self.create_vocab(vocab_file=vocab_file)
         super().__init__(
             unk_token=unk_token,
             bos_token=bos_token,
@@ -43,95 +80,25 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
             eos_token=eos_token,
             mask_token=mask_token,
             **kwargs)
-
-        task_prefixs = TASK_PREFIX+task_prefixs
-        self.create_vocab(
-            vocab_file=vocab_file, 
-            source_files=source_files, 
-            vocab_size=max_size-len(task_prefixs)
-            )
         if self.vocab:
             extra_to_add: int = max_size - len(self.vocab)
             cur_added_len: int = len(task_prefixs) + 9 # placeholder for smiles tokens
             for i in range(cur_added_len, extra_to_add):
                 task_prefixs.append('<extra_task_{}>'.format(str(i)))
             self.add_tokens(['<extra_token_'+str(i)+'>' for i in range(9)]+task_prefixs+['>'], special_tokens=True)
-            self.unique_no_split_tokens = sorted(
-                set(self.unique_no_split_tokens).union(set(self.all_special_tokens))
-            )
 
     @property
     def vocab_size(self) -> int:
         return len(self.vocab)
 
-    def merge_vocabs(
-        self, 
-        vocabs: List[Vocab], 
-        vocab_size: Optional[int]=None,
-    ) -> Vocab:
-        """
-        Merge individual vocabularies (assumed to be generated from disjoint
-        documents) into a larger vocabulary.
-        Args:
-            vocabs: `torchtext.vocab.Vocab` vocabularies to be merged
-            vocab_size: `int` the final vocabulary size. `None` for no limit.
-        Return:
-            `torchtext.vocab.Vocab`
-        """
-        merged: Counter = sum([vocab.freqs for vocab in vocabs], Counter())
-        special_tokens: List[str] = list(self.special_tokens_map.values())  # type: ignore
-        return Vocab(merged,
-                    specials=special_tokens,
-                    max_size=vocab_size-len(special_tokens) if vocab_size else vocab_size)
-
-    def create_vocab(
-        self, 
-        vocab_file: Optional[str]=None,
-        source_files: Optional[Union[str, List[str]]]=None,
-        vocab_size: Optional[int]=None,
-        ) -> None:
+    def create_vocab(self, vocab_file: Optional[str]=None) -> None:
         """
         Create a vocabulary from current vocabulary file or from source file(s).
         Args:
             vocab_file (:obj:`string`, `optional`, defaults to ''):
                 File containing the vocabulary (torchtext.vocab.Vocab class).
-            source_files (:obj:`string`, `optional`, defaults to ''):
-                File containing source data files, vocabulary would be built based on the source file(s).
-            vocab_size: (:obj:`int`, `optional`, defaults to `None`):
-                The final vocabulary size. `None` for no limit.
         """
-        if vocab_file:
-            if not os.path.isfile(vocab_file):
-                raise ValueError(
-                    "Can't find a vocabulary file at path '{}'.".format(vocab_file)
-                )
-            else:
-                self.vocab: Vocab = self.merge_vocabs([torch.load(vocab_file)], vocab_size=vocab_size)
-
-        elif source_files:
-            if isinstance(source_files, str):
-                if not os.path.isfile(source_files):
-                    raise ValueError(
-                        "Can't find a source file at path '{}'.".format(source_files)
-                    )
-                else:
-                    source_files = [source_files]
-            counter: Dict[int, Counter] = {}
-            vocabs: Dict[int, Vocab] = {}
-            for i, source_file in enumerate(source_files):
-                counter[i] = Counter()
-                with open(source_file) as rf:
-                    for line in tqdm(rf, desc='Generating {}'.format(source_file)):
-                        try:
-                            items: List[str] = self._tokenize(line.strip())
-                            counter[i].update(items)
-                        except AssertionError:
-                            print(line.strip())
-                specials: List[str] = list(self.special_tokens_map.values()) # type: ignore
-                vocabs[i] = Vocab(counter[i], specials=specials)
-            self.vocab = self.merge_vocabs([vocabs[i] for i in range(len(source_files))], vocab_size=vocab_size)
-        else:
-            self.vocab = None
+        self.vocab: Vocab = Vocab.load(vocab_file)
 
     def get_vocab(self) -> Dict[str, int]:
         vocab = {self.convert_ids_to_tokens(i): i for i in range(self.vocab_size)}
@@ -181,17 +148,33 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
         if token_ids_1 is None:
             return token_ids_0
         return token_ids_0 + token_ids_1
+        
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
+        """Save the vocabulary to a directory.
 
-    def save_vocabulary(self, vocab_path: str) -> None:    # type: ignore
-        """
-        Save the sentencepiece vocabulary (copy original file) and special tokens file to a directory.
         Args:
-            vocab_path (:obj:`str`):
-                The directory in which to save the vocabulary.
+            save_directory (str): 
+                The directory where the vocabulary will be saved.
+            filename_prefix (Optional[str], defaults to None): 
+                An optional prefix to add to the filename.
+
         Returns:
-            :obj:`Tuple(str)`: Paths to the files saved.
+            Tuple[str]: Tuple containing the path to the saved vocabulary file.
+
+        Raises:
+            ValueError: If save_directory is not a directory.
         """
-        torch.save(self.vocab, vocab_path)
+        if not os.path.isdir(save_directory):
+            raise ValueError(f"Vocabulary path ({save_directory}) should be a directory")
+
+        vocab_file = os.path.join(
+            save_directory, 
+            (filename_prefix + "-" if filename_prefix else "") + "vocab.txt"
+        )
+        
+        self.vocab.save(vocab_file)
+        return (vocab_file,)
+
 
 class SimpleTokenizer(MolTokenizer):
     r"""
@@ -214,7 +197,7 @@ class SimpleTokenizer(MolTokenizer):
             string: an end of sentence token.
         max_size: (:obj:`int`, `optional`, defaults to 100):
             The final vocabulary size. `None` for no limit.
-        **kwargs：
+        **kwargs:
             Arguments passed to `~transformers.PreTrainedTokenizer`
     """
     def __init__(self, vocab_file, max_size=100, **kwargs) -> None:
@@ -222,6 +205,7 @@ class SimpleTokenizer(MolTokenizer):
 
     def _tokenize(self, text: str, **kwargs) -> List[str]: 
         return list(text)
+
 
 class AtomTokenizer(MolTokenizer):
     r"""

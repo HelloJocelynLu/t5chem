@@ -14,8 +14,8 @@ from transformers import T5Config, T5ForConditionalGeneration, PreTrainedTokeniz
 from t5chem.data_utils import T5ChemTasks, TaskPrefixDataset, data_collator
 from t5chem.evaluation import get_rank, standize
 from t5chem.model import T5ForProperty
-#from t5chem.mol_tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
-from t5chem.data_utils import TOKENS, DEFAULT_VOCAB
+from t5chem.mol_tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
+# from t5chem.data_utils import TOKENS, DEFAULT_VOCAB
 import warnings
 
 def add_args(parser):
@@ -73,11 +73,15 @@ def predict(args):
     config = T5Config.from_pretrained(args.model_dir)
     task = T5ChemTasks[config.task_type]
     tokenizer_type = getattr(config, "tokenizer")
-    vocab_file_in_model = os.path.join(args.model_dir, 'tokenizer.json')
-    vocab_path = {True: vocab_file_in_model, False: DEFAULT_VOCAB}[os.path.exists(vocab_file_in_model)]
-    if vocab_path == DEFAULT_VOCAB:
-        warnings.warn(f"tokenizer.json was not found at {args.model_dir}. Using tokenizer.json located at {DEFAULT_VOCAB}")
-    tokenizer = PreTrainedTokenizerFast(tokenizer_file=vocab_path, **TOKENS)
+
+    if tokenizer_type == "simple":
+        Tokenizer = SimpleTokenizer
+    elif tokenizer_type == 'atom':
+        Tokenizer = AtomTokenizer
+    else:
+        Tokenizer = SelfiesTokenizer
+
+    tokenizer = Tokenizer(vocab_file=os.path.join(args.model_dir, 'vocab.txt'))
 
     if os.path.isfile(args.data_dir):
         args.data_dir, base = os.path.split(args.data_dir)
