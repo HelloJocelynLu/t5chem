@@ -22,8 +22,8 @@ class T5ForProperty(T5ForConditionalGeneration):
     _keys_to_ignore_on_load_missing: List[str] = [
         r"encoder\.embed_tokens\.weight",
         r"decoder\.embed_tokens\.weight"
-        r"lm_head\.0\.weight",
-        r"lm_head\.0\.bias",
+        r"lm_head\.weight",
+        r"lm_head\.bias",
     ]
     _keys_to_ignore_on_load_unexpected: List[str] = [
         r"decoder\.block\.0\.layer\.1\.EncDecAttention\.relative_attention_bias\.weight",
@@ -50,7 +50,7 @@ class T5ForProperty(T5ForConditionalGeneration):
             return
         elif self.head_type == "classification":
             num_classes = num_classes if num_classes else getattr(config, "num_classes", 500)
-            lm_head_layer = nn.Linear(config.d_model, num_classes)
+            lm_head_layer = nn.Linear(config.d_model, num_classes, bias=False)
             # lm_head_layers.extend([
             #     nn.Linear(config.d_model, num_classes)
             #     ])
@@ -58,7 +58,7 @@ class T5ForProperty(T5ForConditionalGeneration):
         else:
             assert self.head_type == "regression", \
                 "Only `classification` or `regression` are currently supported for output layer"
-            lm_head_layer = nn.Linear(config.d_model, 2)
+            lm_head_layer = nn.Linear(config.d_model, 2, bias=False)
             # lm_head_layers.extend([
             #     nn.Linear(config.d_model, 2),
             #     nn.LogSoftmax(dim=-1)
@@ -179,15 +179,17 @@ class T5ForProperty(T5ForConditionalGeneration):
         if labels is not None:
             if self.head_type == "classification":
                 loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
-                labels = labels.long()
-                loss = loss_fct(lm_logits, labels.view(-1))
-                lm_logits = torch.argmax(lm_logits, axis=-1)
+                loss = loss_fct(lm_logits, labels.long().view(-1))
             else:
                 loss_fct = nn.KLDivLoss(reduction='batchmean')
                 smoothed_label = torch.stack([(100-labels), labels], dim=1)/100
                 lm_logits = nn.functional.log_softmax(lm_logits, dim=-1)
                 loss = loss_fct(lm_logits, smoothed_label.view(-1,2))
                 lm_logits = torch.exp(lm_logits[:,-1])*100
+
+        elif self.head_type == "regression":
+            lm_logits = nn.functional.log_softmax(lm_logits, dim=-1)
+            lm_logits = torch.exp(lm_logits[:,-1])*100
 
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs

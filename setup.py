@@ -41,13 +41,12 @@ setup(
         ],
     },
     install_requires=[
-        "transformers",
-        "selfies",
-        "scikit-learn",
-        "scipy",
-        "tensorboard",
-        "pandas",
-        "rdkit",
+        "transformers>=4.38.0",
+        "scikit-learn>=1.1.0",
+        "scipy>=1.6.0",
+        "wandb>=0.18.0",
+        "pandas>=1.2.4",
+        "rdkit>=2022.9.4",
     ],
     
     classifiers=[

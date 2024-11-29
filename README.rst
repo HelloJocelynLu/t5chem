@@ -91,8 +91,6 @@ Compatibility
 -------------
 - Now we have found some installation issues on rdkit version later than 2020.09.2 (See discussion `here <https://stackoverflow.com/questions/65487584/how-to-import-rdkit-in-google-colab-these-days>`_)
 
-- torchtext version 0.10.0 published some backward incompatible changes. T5Chem now only tested on torchtext<=0.8.1 
-
 Licence
 -------
 MIT Licence.

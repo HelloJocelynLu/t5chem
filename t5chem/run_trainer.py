@@ -7,17 +7,16 @@ from typing import Dict
 
 import numpy as np
 import torch
+from datetime import datetime
 from transformers import (DataCollatorForLanguageModeling, T5Config,
                           T5ForConditionalGeneration, TrainingArguments)
 
 from t5chem.data_utils import (AccuracyMetrics, CalMSELoss, LineByLineTextDataset,
                         T5ChemTasks, TaskPrefixDataset, TaskSettings,
                         data_collator)
-# from t5chem.data_utils import TOKENS
 from t5chem.model import T5ForProperty
-# from transformers import PreTrainedTokenizerFast as PreTrainedTokenizer
 from t5chem.mol_tokenizers import MolTokenizer, AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
-from t5chem.trainer import EarlyStopTrainer
+from transformers import Trainer, TrainingArguments, EarlyStoppingCallback 
 
 tokenizer_map: Dict[str, MolTokenizer] = {
     'simple': SimpleTokenizer,  # type: ignore
@@ -44,6 +43,12 @@ def add_args(parser):
         required=True,
         help="Task type to use. ('product', 'reactants', 'reagents', \
             'regression', 'classification', 'pretrain', 'mixed')",
+    )
+    parser.add_argument(
+        "--run_name",
+        type=str,
+        default='',
+        help="Run name identifier for the experiment. Will be used in logging and output naming.",
     )
     parser.add_argument(
         "--pretrain",
@@ -73,8 +78,14 @@ def add_args(parser):
         help="Number of epochs for training.",
     )
     parser.add_argument(
-        "--log_step",
+        "--eval_steps",
         default=5000,
+        type=int,
+        help="Number of steps between each evaluation.",
+    )
+    parser.add_argument(
+        "--log_step",
+        default=1000,
         type=int,
         help="Logging after every log_step",
     )
@@ -99,20 +110,21 @@ def add_args(parser):
 
 def train(args):
     print(args)
+
+    os.environ["WANDB_PROJECT"]="T5Chem"
     torch.cuda.manual_seed(args.random_seed)
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
-    # this one is needed for torchtext random call (shuffled iterator)
-    # in multi gpu it ensures datasets are read in the same order
     random.seed(args.random_seed)
-    # some cudnn methods can be random even after fixing the seed
-    # unless you tell it to be deterministic
     torch.backends.cudnn.deterministic = True
 
     assert args.task_type in T5ChemTasks, \
         "only {} are currenly supported, but got {}".\
             format(tuple(T5ChemTasks.keys()), args.task_type)
     task: TaskSettings = T5ChemTasks[args.task_type]
+
+    # Get current time
+    current_time = datetime.now().strftime("%m%d_%H%M")
 
     if args.pretrain: # retrieve information from pretrained model
         if task.output_layer == 'seq2seq':
@@ -167,7 +179,6 @@ def train(args):
             model = T5ForProperty(config, head_type=task.output_layer, num_classes=args.num_classes)
 
     os.makedirs(args.output_dir, exist_ok=True)
-    tokenizer.save_pretrained(args.output_dir)
     if args.task_type == 'pretrain':
         dataset = LineByLineTextDataset(
             tokenizer=tokenizer, 
@@ -218,6 +229,7 @@ def train(args):
                 type_path="val",
             )
         else:
+            logging.warning("No evaluation dataset found!")
             eval_strategy = "no"
             eval_iter = None
 
@@ -229,37 +241,44 @@ def train(args):
     else:
         compute_metrics = AccuracyMetrics
 
+    run_name = args.run_name or f"{current_time}_{args.task_type}"
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         overwrite_output_dir=True,
         do_train=True,
         eval_strategy=eval_strategy,
+        save_strategy=eval_strategy,
         num_train_epochs=args.num_epoch,
         per_device_train_batch_size=args.batch_size,
         logging_steps=args.log_step,
         per_device_eval_batch_size=args.batch_size,
-        save_steps=1000,
-        eval_steps=1000,
+        eval_accumulation_steps=100,
+        save_steps=args.eval_steps*2,
+        eval_steps=args.eval_steps,
         save_total_limit=5,
         learning_rate=args.init_lr,
         prediction_loss_only=(compute_metrics is None),
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
+        report_to="wandb",  # enable logging to W&B
+        run_name=run_name,
     )
 
-    trainer = EarlyStopTrainer(
+    trainer = Trainer(
         model=model,
+        tokenizer=tokenizer,
         args=training_args,
         data_collator=data_collator_padded,
         train_dataset=dataset,
         eval_dataset=eval_iter,
         compute_metrics=compute_metrics,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=15)] if do_eval else [],
     )
 
     trainer.train()
-    print(args)
     print("logging dir: {}".format(training_args.logging_dir))
-    import transformers
-    if transformers.__version__ != "4.10.2":
-        torch.save(model.state_dict(), "pytorch_model.bin")
+    tokenizer.save_vocabulary(args.output_dir)
     trainer.save_model(args.output_dir)
 
 

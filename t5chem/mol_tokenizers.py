@@ -96,7 +96,7 @@ class MolTokenizer(ABC, PreTrainedTokenizer):
         Create a vocabulary from current vocabulary file or from source file(s).
         Args:
             vocab_file (:obj:`string`, `optional`, defaults to ''):
-                File containing the vocabulary (torchtext.vocab.Vocab class).
+                File containing the vocabulary (Vocab class).
         """
         self.vocab: Vocab = Vocab.load(vocab_file)
 
@@ -183,7 +183,7 @@ class SimpleTokenizer(MolTokenizer):
     should refer to the superclass for more information regarding methods.
     Args:
         vocab_file (:obj:`string`):
-            File containing the vocabulary (torchtext.vocab.Vocab class).
+            File containing the vocabulary (Vocab class).
         source_files (:obj:`string`, `optional`, defaults to ''):
             File containing source data files, vocabulary would be built based on the source file(s).
         unk_token (:obj:`string`, `optional`, defaults to '<unk>'):
@@ -214,7 +214,7 @@ class AtomTokenizer(MolTokenizer):
     should refer to the superclass for more information regarding methods.
     Args:
         vocab_file (:obj:`string`):
-            File containing the vocabulary (torchtext.vocab.Vocab class).
+            File containing the vocabulary (Vocab class).
         source_files (:obj:`string`, `optional`, defaults to ''):
             File containing source data files, vocabulary would be built based on the source file(s).
         unk_token (:obj:`string`, `optional`, defaults to '<unk>'):
@@ -246,7 +246,7 @@ class SelfiesTokenizer(MolTokenizer):
     should refer to the superclass for more information regarding methods.
     Args:
         vocab_file (:obj:`string`):
-            File containing the vocabulary (torchtext.vocab.Vocab class).
+            File containing the vocabulary (Vocab class).
         source_files (:obj:`string`, `optional`, defaults to ''):
             File containing source data files, vocabulary would be built based on the source file(s).
         unk_token (:obj:`string`, `optional`, defaults to '<unk>'):

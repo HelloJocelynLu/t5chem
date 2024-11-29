@@ -9,14 +9,13 @@ import torch
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
-from transformers import T5Config, T5ForConditionalGeneration, PreTrainedTokenizerFast
+from transformers import T5Config, T5ForConditionalGeneration
 
 from t5chem.data_utils import T5ChemTasks, TaskPrefixDataset, data_collator
 from t5chem.evaluation import get_rank, standize
 from t5chem.model import T5ForProperty
 from t5chem.mol_tokenizers import AtomTokenizer, SelfiesTokenizer, SimpleTokenizer
-# from t5chem.data_utils import TOKENS, DEFAULT_VOCAB
-import warnings
+
 
 def add_args(parser):
     parser.add_argument(
@@ -145,8 +144,12 @@ def predict(args):
                     batch[k] = v.to(device)
             with torch.no_grad():
                 outputs = model(**batch)
-                targets.extend(batch['labels'].view(-1).to(outputs.logits).tolist())
-                predictions.extend((outputs.logits).tolist())
+            if task.output_layer == 'classification':
+                pred_val = torch.argmax(outputs.logits, axis=-1)
+            else:
+                pred_val = outputs.logits
+            targets.extend(batch['labels'].view(-1).to(pred_val).tolist())
+            predictions.extend((pred_val).tolist())
 
     test_df = pd.DataFrame(targets, columns=['target'])
 
