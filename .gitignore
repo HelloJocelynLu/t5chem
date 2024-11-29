@@ -39,4 +39,5 @@ nosetests.xml
 
 # exclude data from source control by default, will compress and publish later when ready
 
-#
+# log files
+wandb

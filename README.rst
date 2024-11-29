@@ -60,7 +60,8 @@ We have some sample data (a small subset from datasets used in paper) available 
 However, finetune based on a pre-trained model is strongly recommended. (You will get ~70% top-1 accuracy if training from a pretrained model by using `--pretrain`. But only 0.1% top-1 accuracy by training from scratch). You can download some pre-trained models and more datasets `here <https://yzhang.hpc.nyu.edu/T5Chem/index.html>`__.
 
 .. code:: bash
-
+   $ wget https://yzhang.hpc.nyu.edu/T5Chem/models/simple_pretrain.tar.bz2  # download the pretrained model weights
+   $ tar -xjvf simple_pretrain.tar.bz2 # extract the model weights
    $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --num_epoch 30 --pretrain models/pretrain/simple/       # Load a pretrained model
    $ t5chem predict --data_dir data/sample/product/ --model_dir model/      # test a trained model
 
