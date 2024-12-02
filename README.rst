@@ -23,14 +23,13 @@ Installation
 
 T5Chem can be either installed via pip or from source. We recommend to install t5chem from source.
 
-1. To install from source (with latest version):
+1. To install from source
 
  .. code:: bash
 
    $ git clone https://github.com/HelloJocelynLu/t5chem.git
    $ cd t5chem/
-   $ python setup.py install
-   $ python setup.py test # optional, only works when you have pytest installed
+   $ pip install .
 
 It should automatically handle dependencies for you.
 
@@ -58,8 +57,23 @@ We have some sample data (a small subset from datasets used in paper) available 
    $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --num_epoch 30        # Train a model
    $ t5chem predict --data_dir data/sample/product/ --model_dir model/      # test a trained model
 
-These commands trained a T5Chem model from scratch and take ~13 mins in v100 GPU. It is recommended to use a prerained model rather than totally trained from scratch, you can download some trained models and more datasets `here <https://yzhang.hpc.nyu.edu/T5Chem/index.html>`__.
-Note that we may get a bad result (0.1% top-1 accuracy) as we are only trained on a small dataset and totally from scratch. (You will get ~70% top-1 accuracy if training from a pretrained model by using `--pretrain`.) A more detailed example training from pretrained weights and explanations for commonly used arguments can be find `here <https://yzhang.hpc.nyu.edu/T5Chem/tutorial.html>`__.
+However, finetune based on a pre-trained model is strongly recommended. (You will get ~70% top-1 accuracy if training from a pretrained model by using `--pretrain`. But only 0.1% top-1 accuracy by training from scratch). You can download some pre-trained models and more datasets `here <https://yzhang.hpc.nyu.edu/T5Chem/index.html>`__.
+
+Download and extract the pretrained model weights:
+
+.. code:: bash
+
+   $ wget https://yzhang.hpc.nyu.edu/T5Chem/models/simple_pretrain.tar.bz2
+   $ tar -xjvf simple_pretrain.tar.bz2
+
+Train using a pretrained model and test it:
+
+.. code:: bash
+
+   $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --num_epoch 30 --pretrain models/pretrain/simple/
+   $ t5chem predict --data_dir data/sample/product/ --model_dir model/
+
+A more detailed example training from pretrained weights and explanations for commonly used arguments can be find `here <https://yzhang.hpc.nyu.edu/T5Chem/tutorial.html>`__.
 
 Call as an API (Test a trained model):
 
@@ -69,7 +83,7 @@ Call as an API (Test a trained model):
    from t5chem import T5ForProperty, SimpleTokenizer
    pretrain_path = "path/to/your/pretrained/model/"
    model = T5ForConditionalGeneration.from_pretrained(pretrain_path)    # for seq2seq tasks
-   tokenizer = SimpleTokenizer(vocab_file=os.path.join(pretrain_path, 'vocab.pt'))
+   tokenizer = SimpleTokenizer(vocab_file=os.path.join(pretrain_path, 'vocab.txt'))
    inputs = tokenizer.encode("Product:COC(=O)c1cc(COc2ccc(-c3ccccc3OC)cc2)c(C)o1.C1CCOC1>>", return_tensors='pt')
    output = model.generate(input_ids=inputs, max_length=300, early_stopping=True)
    tokenizer.decode(output[0], skip_special_tokens=True) # "COc1ccccc1-c1ccc(OCc2cc(C(=O)O)oc2C)cc1"
@@ -87,11 +101,6 @@ We have Google Colab examples available! Feel free to try it out:
 
 - Design your own project: predict molecular weights `Colab <https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing>`__
 
-Compatibility
--------------
-- Now we have found some installation issues on rdkit version later than 2020.09.2 (See discussion `here <https://stackoverflow.com/questions/65487584/how-to-import-rdkit-in-google-colab-these-days>`_)
-
-- torchtext version 0.10.0 published some backward incompatible changes. T5Chem now only tested on torchtext<=0.8.1 
 
 Licence
 -------

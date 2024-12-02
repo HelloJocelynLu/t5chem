@@ -47,13 +47,15 @@ class LineByLineTextDataset(Dataset):
         
     def __getitem__(self, idx: int) -> torch.Tensor:
         line: str = linecache.getline(self._file_path, idx + 1).strip()
-        sample: BatchEncoding = self.tokenizer(
+        sample = self.tokenizer(
                         self.prefix+line,
                         max_length=self.max_length,
                         padding="do_not_pad",
                         truncation=True,
                         return_tensors='pt',
                     )
+        # Assert sample is BatchEncoding
+        assert isinstance(sample, BatchEncoding) # Should be a batchEncoding.
         return sample['input_ids'].squeeze(0)
       
     def __len__(self) -> int:
@@ -142,13 +144,14 @@ def data_collator(batch: List[BatchEncoding], pad_token_id: int) -> Dict[str, to
 
 
 def CalMSELoss(model_output: PredictionOutput) -> Dict[str, float]:
-    predictions: np.ndarray = model_output.predictions # type: ignore
+    predictions: np.ndarray = model_output.predictions[0] # type: ignore
     label_ids: np.ndarray = model_output.label_ids.squeeze() # type: ignore
     loss: float = ((predictions - label_ids)**2).mean().item()
     return {'mse_loss': loss}
 
 def AccuracyMetrics(model_output: PredictionOutput) -> Dict[str, float]:
     label_ids: np.ndarray = model_output.label_ids # type: ignore
-    predictions: np.ndarray = model_output.predictions.reshape(-1, label_ids.shape[1]) # type: ignore
-    correct: int = np.all(predictions==label_ids, 1).sum()
-    return {'accuracy': correct/len(predictions)}
+    predictions: np.ndarray = np.argmax(model_output.predictions[0], axis=-1)
+    mask = label_ids != -100
+    masked_equal = (predictions.reshape(len(label_ids), -1) == label_ids) | ~mask
+    return {'accuracy': np.all(masked_equal, axis=1).mean()}
