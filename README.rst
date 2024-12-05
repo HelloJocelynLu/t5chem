@@ -57,13 +57,13 @@ We have some sample data (a small subset from datasets used in paper) available 
    $ t5chem train --data_dir data/sample/product/ --output_dir model/ --task_type product --num_epoch 30        # Train a model
    $ t5chem predict --data_dir data/sample/product/ --model_dir model/      # test a trained model
 
-However, finetune based on a pre-trained model is strongly recommended. (You will get ~70% top-1 accuracy if training from a pretrained model by using `--pretrain`. But only 0.1% top-1 accuracy by training from scratch). You can download some pre-trained models and more datasets `here <https://yzhang.hpc.nyu.edu/T5Chem/index.html>`__.
+However, finetune based on a pre-trained model is strongly recommended. (You will get ~70% top-1 accuracy if training from a pretrained model by using `--pretrain`. But only 0.1% top-1 accuracy by training from scratch). You can download some pre-trained models and more datasets `here <https://zenodo.org/records/14280768>`__.
 
 Download and extract the pretrained model weights:
 
 .. code:: bash
 
-   $ wget https://yzhang.hpc.nyu.edu/T5Chem/models/simple_pretrain.tar.bz2
+   $ wget https://zenodo.org/records/14280768/files/simple_pretrain.tar.bz2
    $ tar -xjvf simple_pretrain.tar.bz2
 
 Train using a pretrained model and test it:
