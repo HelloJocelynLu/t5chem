@@ -143,9 +143,9 @@ def train(args):
         if not os.path.isfile(vocab_path):
             vocab_path = args.vocab
             if not vocab_path:
-                raise ValueError(
-                        "Can't find a vocabulary file at path '{}'.".format(args.pretrain)
-                    )
+                vocab_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vocab/'+tokenizer_type+'.txt')
+                logging.warning("No vocabulary file found at path '{}'. \
+                                Using default one at '{}'".format(args.pretrain, vocab_path))
         tokenizer = tokenizer_map[tokenizer_type](vocab_file=vocab_path)
         model.config.tokenizer = tokenizer_type # type: ignore
         model.config.task_type = args.task_type # type: ignore
