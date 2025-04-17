@@ -75,6 +75,7 @@ Train using a pretrained model and test it:
 
 A more detailed example training from pretrained weights and explanations for commonly used arguments can be find `here <https://yzhang.hpc.nyu.edu/T5Chem/tutorial.html>`__.
 
+
 Call as an API (Test a trained model):
 
 .. code:: python
@@ -100,6 +101,26 @@ We have Google Colab examples available! Feel free to try it out:
 - Use a pretrained model in python script `Colab <https://colab.research.google.com/drive/1xwz7c7q1SwwD5jEQKamo9TNCN1PKH8um?usp=sharing>`__
 
 - Design your own project: predict molecular weights `Colab <https://colab.research.google.com/drive/1eu22gjGJDwXy59TBL8pfDmBF5_DQXBGn?usp=sharing>`__
+
+Custom Pre-training
+------------------
+
+If you want to perform pre-training from scratch using a different T5 architecture model from Hugging Face, you can follow these steps:
+
+1. Download the PubChem molecules dataset for pre-training:
+
+.. code:: bash
+
+   $ wget https://zenodo.org/records/15174498/files/MLM.tar.gz
+
+2. Extract the dataset and start pre-training (using Google's T5-v1.1-small as an example):
+
+.. code:: bash
+
+   $ tar -xzvf MLM.tar.gz
+   $ t5chem train --data_dir MLM/train_0 --output_dir model/pretrain/v1_1-small --task_type pretrain --num_epoch 1 --pretrain google/t5-v1_1-small # Note that we have MLM/train_0-9 for complete dataset
+
+After pre-training, you can use your custom pre-trained model for fine-tuning following the examples shown earlier.
 
 
 Licence
