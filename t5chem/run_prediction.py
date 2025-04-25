@@ -6,7 +6,9 @@ import pandas as pd
 import rdkit
 import scipy
 import torch
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from scipy.stats import pearsonr, spearmanr
 from torch.utils.data.dataloader import DataLoader
 from tqdm.auto import tqdm
 from transformers import T5Config, T5ForConditionalGeneration
@@ -169,11 +171,11 @@ def predict(args):
                 invalid_smiles/len(test_df)/i*100))
     elif task.output_layer == 'regression':
         test_df['prediction'] = predictions
-        MAE = mean_absolute_error(test_df['target'], test_df['prediction'])      
-        MSE = mean_squared_error(test_df['target'], test_df['prediction'])
-        slope, intercept, r_value, p_value, std_err = \
-            scipy.stats.linregress(test_df['prediction'], test_df['target'])
-        print("MAE: {}    RMSE: {}    r2: {}    r:{}".format(MAE, MSE**0.5, r_value**2, r_value))
+        MAE = np.mean(np.abs(test_df['target'] - test_df['prediction']))
+        pearson_corr, _ = pearsonr(test_df['target'], test_df['prediction'])
+        spearman_corr, _ = spearmanr(test_df['target'], test_df['prediction'])
+        r2_value = r2_score(test_df['target'], test_df['prediction'])
+        print(f"MAE: {MAE}, Pearson: {pearson_corr}, Spearman: {spearman_corr}, R2: {r2_value}")
     else:
         test_df['prediction_1'] = predictions
         correct = sum(test_df['prediction_1'] == test_df['target'])

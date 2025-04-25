@@ -127,8 +127,27 @@ def train(args):
     current_time = datetime.now().strftime("%m%d_%H%M")
 
     if args.pretrain: # retrieve information from pretrained model
+        # First load the config to get tokenizer type
+        config = T5Config.from_pretrained(args.pretrain)
+        tokenizer_type = getattr(config, "tokenizer", 'simple')
+        if not hasattr(config, 'tokenizer'):
+            logging.warning("No tokenizer type detected, will use SimpleTokenizer as default")
+        
+        # Initialize tokenizer
+        vocab_path = os.path.join(args.pretrain, 'vocab.txt')
+        if not os.path.isfile(vocab_path):
+            vocab_path = args.vocab
+            if not vocab_path:
+                vocab_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vocab/'+tokenizer_type+'.txt')
+                logging.warning("No vocabulary file found at path '{}'. Using default one at '{}'".format(args.pretrain, vocab_path))
+        tokenizer = tokenizer_map[tokenizer_type](vocab_file=vocab_path)
+        
+        # Now load the model with the correct vocab size
         if task.output_layer == 'seq2seq':
-            model = T5ForConditionalGeneration.from_pretrained(args.pretrain)
+            if args.task_type == 'pretrain':
+                model = T5ForConditionalGeneration.from_pretrained(args.pretrain, vocab_size=len(tokenizer), dropout_rate=0, ignore_mismatched_sizes=True)
+            else:
+                model = T5ForConditionalGeneration.from_pretrained(args.pretrain, vocab_size=len(tokenizer), ignore_mismatched_sizes=True)
         else:
             model = T5ForProperty.from_pretrained(
                 args.pretrain, 
@@ -136,24 +155,11 @@ def train(args):
                 ignore_mismatched_sizes = True,
                 num_classes = args.num_classes,
             )
-        if not hasattr(model.config, 'tokenizer'):
-            logging.warning("No tokenizer type detected, will use SimpleTokenizer as default")
-        tokenizer_type = getattr(model.config, "tokenizer", 'simple')
-        vocab_path = os.path.join(args.pretrain, 'vocab.txt')
-        if not os.path.isfile(vocab_path):
-            vocab_path = args.vocab
-            if not vocab_path:
-                vocab_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vocab/'+tokenizer_type+'.txt')
-                logging.warning("No vocabulary file found at path '{}'. \
-                                Using default one at '{}'".format(args.pretrain, vocab_path))
-        tokenizer = tokenizer_map[tokenizer_type](vocab_file=vocab_path)
         model.config.tokenizer = tokenizer_type # type: ignore
         model.config.task_type = args.task_type # type: ignore
     else:
         if not args.tokenizer:
-            warn_msg = "This model is trained from scratch, but no " \
-                   "tokenizer type is specified, will use simple tokenizer " \
-                   "as default for this training."
+            warn_msg = "This model is trained from scratch, but no tokenizer type is specified, will use simple tokenizer as default for this training."
             args.tokenizer = 'simple'
             logging.warning(warn_msg)
             args.tokenizer = 'simple'
