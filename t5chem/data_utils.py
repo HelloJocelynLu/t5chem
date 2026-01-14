@@ -10,6 +10,44 @@ from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizer
 from transformers.trainer_utils import PredictionOutput
 
+def python_chunked_count(path: str, bufsize: int = 1024 * 1024) -> int:
+    """
+    Read file in binary chunks and count b'\n'.
+
+    Adds one if the file is non-empty and the last byte isn't a newline.
+    """
+    total = 0
+    last_byte_newline = False
+    file_empty = True
+    with open(path, 'rb') as f:
+        while True:
+            chunk = f.read(bufsize)
+            if not chunk:
+                break
+            file_empty = False
+            total += chunk.count(b'\n')
+            last_byte_newline = chunk.endswith(b'\n')
+    if file_empty:
+        return 0
+    # If last byte not newline, there's one more line (than what python counts)
+    if not last_byte_newline:
+        total += 1
+    return total
+
+def count_lines(file_path: str) -> int:
+    try:
+        wc_count = int(subprocess.check_output("wc -l " + file_path, shell=True).split()[0])
+        # wc -l counts newlines, not lines.  If file doesn't end with \n, add 1
+        with open(file_path, 'rb') as f:
+            f.seek(0, 2)  # Seek to end
+            if f.tell() > 0:  # Non-empty file
+                f.seek(-1, 2)  # Go to last byte
+                if f.read(1) != b'\n':
+                    wc_count += 1
+        return wc_count
+    except Exception:
+        return python_chunked_count(file_path)
+
 
 class TaskSettings(NamedTuple):
     prefix: str
@@ -41,7 +79,7 @@ class LineByLineTextDataset(Dataset):
         
         self.prefix: str = prefix
         self._file_path: str = file_path
-        self._len: int = int(subprocess.check_output("wc -l " + file_path, shell=True).split()[0])
+        self._len: int = count_lines(file_path)
         self.tokenizer: PreTrainedTokenizer = tokenizer
         self.max_length: int = block_size
         
@@ -78,8 +116,8 @@ class TaskPrefixDataset(Dataset):
         self.prefix: str = prefix
         self._source_path: str = os.path.join(data_dir, type_path + ".source")
         self._target_path: str = os.path.join(data_dir, type_path + ".target")
-        self._len_source: int = int(subprocess.check_output("wc -l " + self._source_path, shell=True).split()[0])
-        self._len_target: int = int(subprocess.check_output("wc -l " + self._target_path, shell=True).split()[0])
+        self._len_source: int = count_lines(self._source_path)
+        self._len_target: int = count_lines(self._target_path)
         assert self._len_source == self._len_target, "Source file and target file don't match!"
         self.tokenizer: PreTrainedTokenizer = tokenizer
         self.max_source_len: int = max_source_length
